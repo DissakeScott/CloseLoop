@@ -14,3 +14,6 @@ google-generativeai
 
 # --- Utilitaires ---
 python-dotenv==1.2.2
+
+# --- Sentry pour le monitoring des erreurs ---
+sentry-sdk[fastapi]
