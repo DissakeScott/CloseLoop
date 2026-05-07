@@ -1,0 +1,14 @@
+# Cacher les clés secrètes
+.env
+.env.local
+backend/.env
+frontend/.env.local
+
+# Ignorer les dossiers lourds générés automatiquement
+node_modules/
+.next/
+backend/venv/
+backend/__pycache__/
+
+# Fichiers système
+.DS_Store
