@@ -4,7 +4,10 @@ import { ArrowRight } from "lucide-react";
 
 export default function Home() {
   const handleLogin = () => {
-    window.location.href = "http://localhost:8000/auth/login";
+    // C'EST ICI QUE LA MAGIE OPÈRE :
+    // On récupère l'URL de Render (Vercel) ou localhost (PC)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    window.location.href = `${apiUrl}/auth/login`;
   };
 
   return (

@@ -3,10 +3,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
-from googleapiclient.discovery import build # <-- NOUVEAU
-from sqlalchemy.orm import Session # <-- NOUVEAU
-import datetime # <-- NOUVEAU
-from app.models.database import User, get_db # <-- NOUVEAU
+from googleapiclient.discovery import build 
+from sqlalchemy.orm import Session 
+import datetime 
+from app.models.database import User, get_db 
 
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
@@ -95,7 +95,13 @@ def auth_callback(state: str, code: str, db: Session = Depends(get_db)):
             db.add(db_user)
             
         db.commit()
-        frontend_url = f"http://localhost:3000/dashboard?access_token={db_user.access_token}&email={db_user.email}"
+        
+        # --- C'EST ICI QUE TOUT CHANGE ---
+        # On récupère l'URL de Vercel depuis les variables Render (ou localhost par défaut)
+        base_frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        
+        # On construit le lien dynamique vers le dashboard
+        frontend_url = f"{base_frontend_url}/dashboard?access_token={db_user.access_token}&email={db_user.email}"
         
         if db_user.refresh_token:
             frontend_url += f"&refresh_token={db_user.refresh_token}"
@@ -114,4 +120,4 @@ def get_user_tokens(email: str, db: Session = Depends(get_db)):
     return {
         "access_token": user.access_token,
         "refresh_token": user.refresh_token
-    }  
+    }
