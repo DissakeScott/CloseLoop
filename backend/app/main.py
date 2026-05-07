@@ -7,11 +7,15 @@ from app.models.database import init_db
 
 init_db()
 
-app = FastAPI(title="Smart Follow-up API")
+app = FastAPI(title="CloseLoop API")
 
+origins = [
+    "http://localhost:3000",
+    "https://close-loop-liard.vercel.app",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
