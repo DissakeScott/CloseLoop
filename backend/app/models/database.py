@@ -18,6 +18,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+class OAuthState(Base):
+    __tablename__ = "oauth_states"
+
+    state = Column(String, primary_key=True, index=True)
+    code_verifier = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 # --- MODÈLE DE NOTRE TABLE UTILISATEUR ---
 class User(Base):
     __tablename__ = "users"
