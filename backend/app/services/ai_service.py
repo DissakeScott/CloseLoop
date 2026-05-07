@@ -9,7 +9,7 @@ else:
     print("⚠️ ATTENTION : La variable GEMINI_API_KEY est introuvable !")
 
 def get_best_model():
-    """Demande à Google la liste exacte des modèles autorisés et choisit le plus sûr."""
+    """Demande à Google la liste exacte des modèles autorisés et choisit le plus rapide (Flash)."""
     available_models = []
     try:
         # On demande à Google ce à quoi on a droit
@@ -17,21 +17,25 @@ def get_best_model():
             if "generateContent" in m.supported_generation_methods:
                 available_models.append(m.name)
         
-        print("✅ Modèles autorisés par Google pour ton compte :", available_models)
+        print("✅ Modèles autorisés :", available_models)
         
-        # On cherche le meilleur modèle stable en évitant les versions problématiques
+        # 1. On cherche en priorité la toute dernière version Flash (très rapide, gros quota)
         for m in available_models:
-            if "gemini-1.5-flash" in m: return m
+            if "models/gemini-2.5-flash" == m: return m
+            
+        # 2. Plan B : le raccourci vers la dernière version Flash stable
         for m in available_models:
-            if "gemini-1.5-pro" in m: return m
+            if "models/gemini-flash-latest" == m: return m
+            
+        # 3. Plan C : l'ancienne version Flash
         for m in available_models:
-            if "gemini-pro" in m or "gemini-1.0" in m: return m
+            if "models/gemini-2.0-flash" == m: return m
             
         # Si aucun favori n'est là, on prend le premier de la liste
         return available_models[0]
     except Exception as e:
         print("Impossible de lister les modèles :", e)
-        return "models/gemini-pro"
+        return "models/gemini-2.5-flash"
 
 def generate_draft(email_content: str, tone: str = "naturel") -> str:
     """Génère un brouillon de relance avec un ton spécifique"""
