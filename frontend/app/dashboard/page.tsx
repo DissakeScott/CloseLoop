@@ -153,7 +153,26 @@ const handleSendClick = async () => {
       
     } catch (error: any) {
       if (error.message === "QUOTA_REACHED") {
-        showToast("Limites du plan gratuit atteintes ! Passez au plan Pro.", "error");
+        showToast("Redirection vers la page de paiement...", "error");
+        
+        // --- 💰 REDIRECTION STRIPE ---
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          const stripeRes = await fetch(`${apiUrl}/api/payments/create-checkout-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userEmail })
+          });
+          
+          if (stripeRes.ok) {
+            const data = await stripeRes.json();
+            // On redirige brutalement (mais élégamment) l'utilisateur vers Stripe !
+            window.location.href = data.checkout_url; 
+          }
+        } catch (stripeErr) {
+          showToast("Erreur lors de la connexion à Stripe.", "error");
+        }
+        
       } else {
         showToast("Erreur lors de l'envoi.", "error");
       }
