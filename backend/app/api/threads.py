@@ -2,9 +2,18 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
-from app.services.ai_service import generate_draft
-from app.services.gmail_service import build_gmail_service, get_followup_opportunities, get_thread_content, send_email_reply
+
+# --- NOUVEAUX IMPORTS ---
+from app.services.ai_service import generate_followup_draft
+from app.services.gmail_service import (
+    build_gmail_service, 
+    get_followup_opportunities, 
+    get_thread_content, 
+    send_email_reply,
+    get_user_style_examples # <-- On importe notre nouvelle fonction
+)
 from google.auth.exceptions import RefreshError
+
 router = APIRouter()
 
 class TokenPayload(BaseModel):
@@ -14,7 +23,8 @@ class TokenPayload(BaseModel):
 class DraftPayload(BaseModel):
     access_token: str
     refresh_token: str
-    tone: str = "naturel"
+    # Le champ "tone" a été supprimé ! 
+    # L'IA n'a plus besoin qu'on lui dise "naturel" ou "formel", elle copie le vrai style.
 
 class SendReplyPayload(BaseModel):
     access_token: str
@@ -22,7 +32,7 @@ class SendReplyPayload(BaseModel):
     draft_text: str
 
 
-@router.post("/opportunities") # <-- J'ai renommé la route pour que ce soit plus "produit"
+@router.post("/opportunities")
 def fetch_opportunities(payload: TokenPayload):
     """Analyse la boîte mail et renvoie les emails à relancer"""
     try:
@@ -33,7 +43,6 @@ def fetch_opportunities(payload: TokenPayload):
             GOOGLE_CLIENT_SECRET
         )
         
-        # On lance l'algorithme (avec un seuil de 3 jours par défaut)
         opportunities = get_followup_opportunities(service, days_threshold=0)
         
         return {
@@ -41,29 +50,35 @@ def fetch_opportunities(payload: TokenPayload):
             "data": opportunities
         }
     except RefreshError:
-        # C'EST NOUVEAU : On repère spécifiquement l'expiration Google
         raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez vous reconnecter.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur d'analyse : {str(e)}")
     
+
 @router.post("/{thread_id}/draft")
-def create_followup_draft(thread_id: str, payload: DraftPayload): # <-- Modifie ici
-    """Génère un brouillon avec Gemini via un fil de discussion"""
+def create_followup_draft(thread_id: str, payload: DraftPayload):
+    """Génère un brouillon avec Gemini via un fil de discussion (Avec Clonage de Style)"""
     try:
+        # 1. On se connecte à Gmail
         service = build_gmail_service(payload.access_token, payload.refresh_token, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+        
+        # 2. On récupère le contexte de la discussion actuelle
         content = get_thread_content(service, thread_id)
         
-        # On passe le ton à notre IA !
-        ai_draft = generate_draft(content, tone=payload.tone) # <-- Modifie ici
+        # 3. NOUVEAU : On récupère l'ADN rédactionnel du freelance (ses 3 derniers messages envoyés)
+        # /!\ Assure-toi que ta fonction get_user_style_examples accepte 'service' en paramètre
+        style_examples = get_user_style_examples(service, max_results=3)
+        
+        # 4. NOUVEAU : On passe le tout à notre nouvelle IA
+        ai_draft = generate_followup_draft(content, user_style_examples=style_examples)
         
         return {
             "thread_id": thread_id,
             "original_content_snippet": content[:200] + "...",
             "ai_draft": ai_draft,
-            "tone_used": payload.tone
+            "style_cloned": True if style_examples else False # Indique au front que le clonage a marché
         }
     except RefreshError:
-        # C'EST NOUVEAU : On repère spécifiquement l'expiration Google
         raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez vous reconnecter.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -80,7 +95,6 @@ def send_followup_reply(thread_id: str, payload: SendReplyPayload):
             GOOGLE_CLIENT_SECRET
         )
         
-        # Envoi de l'email !
         result = send_email_reply(service, thread_id, payload.draft_text)
         
         return {
@@ -89,7 +103,6 @@ def send_followup_reply(thread_id: str, payload: SendReplyPayload):
             "gmail_message_id": result['id']
         }
     except RefreshError:
-        # C'EST NOUVEAU : On repère spécifiquement l'expiration Google
         raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez vous reconnecter.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors de l'envoi : {str(e)}")

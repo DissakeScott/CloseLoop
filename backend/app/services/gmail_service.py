@@ -133,3 +133,37 @@ def send_email_reply(service, thread_id: str, draft_text: str):
     # 5. ENVOI ! 🚀
     sent_message = service.users().messages().send(userId="me", body=create_message).execute()
     return sent_message
+
+
+def get_user_style_examples(service, max_results=5):
+    """
+    Récupère les derniers messages envoyés par l'utilisateur pour servir d'exemples de style.
+    """
+    
+    # On cherche uniquement les messages dans "SENT" (envoyés)
+    results = service.users().messages().list(userId='me', labelIds=['SENT'], maxResults=max_results).execute()
+    messages = results.get('messages', [])
+    
+    style_examples = []
+    for msg in messages:
+        m = service.users().messages().get(userId='me', id=msg['id'], format='full').execute()
+        # On extrait le corps du texte (en ignorant les signatures et le reste si possible)
+        payload = m.get('payload', {})
+        parts = payload.get('parts', [])
+        
+        body = ""
+        if not parts: # Message simple sans pièces jointes
+            body = payload.get('body', {}).get('data', '')
+        else:
+            # On cherche la partie 'text/plain'
+            for part in parts:
+                if part.get('mimeType') == 'text/plain':
+                    body = part.get('body', {}).get('data', '')
+        
+        if body:
+            import base64
+            decoded_body = base64.urlsafe_b64decode(body).decode('utf-8')
+            # Nettoyage rapide pour ne garder que le texte pur
+            style_examples.append(decoded_body[:500]) # On limite à 500 caractères par exemple
+            
+    return style_examples
