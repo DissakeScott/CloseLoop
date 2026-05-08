@@ -1,12 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchOpportunities, generateDraft, sendReply } from "@/lib/api";
-import { RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut, Info } from "lucide-react";
+// On ajoute l'icône Search à la liste !
+import { RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut, Info, Search } from "lucide-react";
 
 export default function Dashboard() {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(false);
   
+  // --- NOUVEL ÉTAT POUR LA RECHERCHE ---
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [userEmail, setUserEmail] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedThread, setSelectedThread] = useState<any>(null);
@@ -53,7 +57,6 @@ export default function Dashboard() {
     try {
       const result = await fetchOpportunities(acc, ref);
       
-      // 🔥 LA HEATMAP (Tri intelligent) : On met les "OUBLI" en haut de la pile
       const sortedOpportunities = result.data.sort((a: any, b: any) => {
         const rank: any = { "OUBLI": 1, "OBJECTION": 2, "ATTENTE": 3 };
         const rankA = rank[a.intent_category] || 4;
@@ -122,7 +125,6 @@ export default function Dashboard() {
     }
   };
 
-  // Fonction pour styliser le badge en fonction de l'intention
   const getIntentStyle = (category: string) => {
     switch(category) {
       case "OUBLI": return "bg-emerald-100 text-emerald-800 border-emerald-200";
@@ -131,6 +133,16 @@ export default function Dashboard() {
       default: return "bg-slate-100 text-slate-800 border-slate-200";
     }
   };
+
+  // --- LOGIQUE DE FILTRAGE ---
+  const filteredOpportunities = opportunities.filter((opp: any) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      opp.subject?.toLowerCase().includes(query) ||
+      opp.recipient?.toLowerCase().includes(query) ||
+      opp.snippet?.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -155,18 +167,37 @@ export default function Dashboard() {
       </header>
 
       <main className="p-8 max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        
+        {/* --- EN-TÊTE AVEC RECHERCHE --- */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Tes opportunités de relance</h1>
-            <p className="text-slate-500 mt-1">Classées intelligemment par priorité IA.</p>
+            <p className="text-slate-500 mt-1">Classées intelligemment par priorité de relance.</p>
           </div>
-          <button onClick={handleManualRefresh} disabled={loading} className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-all font-medium shadow-sm">
-            <RefreshCw className={`w-4 h-4 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? "Analyse IA..." : "Actualiser"}
-          </button>
+          
+          <div className="flex w-full md:w-auto items-center gap-3">
+            {/* LA BARRE DE RECHERCHE */}
+            <div className="relative w-full md:w-72">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Rechercher (email, objet...)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all text-sm shadow-sm placeholder:text-slate-400"
+              />
+            </div>
+            
+            {/* LE BOUTON ACTUALISER */}
+            <button onClick={handleManualRefresh} disabled={loading} className="flex shrink-0 items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-all font-medium shadow-sm">
+              <RefreshCw className={`w-4 h-4 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{loading ? "Actualisation..." : "Actualiser"}</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-4">
+          {/* SI AUCUNE OPPORTUNITÉ GLOBALE */}
           {opportunities.length === 0 && !loading && (
             <div className="text-center py-24 border-2 border-dashed border-slate-200 rounded-3xl bg-white text-slate-500">
               <p className="text-lg font-medium mb-2">Tout est à jour ! 🎉</p>
@@ -174,12 +205,20 @@ export default function Dashboard() {
             </div>
           )}
 
-          {opportunities.map((opp: any) => (
+          {/* SI LA RECHERCHE NE DONNE RIEN */}
+          {opportunities.length > 0 && filteredOpportunities.length === 0 && (
+            <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-3xl bg-white text-slate-500">
+              <p className="text-lg font-medium mb-2">Aucun résultat trouvé 🕵️‍♂️</p>
+              <p className="text-sm">Essayez de modifier votre terme de recherche.</p>
+            </div>
+          )}
+
+          {/* ON MAP SUR filteredOpportunities AU LIEU DE opportunities */}
+          {filteredOpportunities.map((opp: any) => (
             <div key={opp.thread_id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-200 group">
               <div className="flex justify-between items-start">
                 <div className="space-y-3 flex-1 pr-6">
                   
-                  {/* --- BADGES ET MÉTA-DONNÉES --- */}
                   <div className="flex flex-wrap items-center gap-3">
                     <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${getIntentStyle(opp.intent_category)}`}>
                       {opp.intent_category === "OUBLI" && "🔥 Oubli probable"}
@@ -197,7 +236,6 @@ export default function Dashboard() {
                     <p className="text-sm text-slate-500 mt-0.5">{opp.recipient}</p>
                   </div>
 
-                  {/* --- RAISON DE L'IA --- */}
                   <div className="flex items-start gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
                     <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
                     <p className="text-sm text-slate-600 italic">"{opp.intent_reason}"</p>
