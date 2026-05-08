@@ -3,7 +3,9 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime, timezone, timedelta
 import base64
+import concurrent.futures
 from email.message import EmailMessage
+from app.services.ai_service import analyze_thread_intent
 
 def build_gmail_service(access_token: str, refresh_token: str, client_id: str, client_secret: str):
     creds = Credentials(
@@ -18,51 +20,63 @@ def build_gmail_service(access_token: str, refresh_token: str, client_id: str, c
 def get_followup_opportunities(service, days_threshold=3, max_results=10):
     """
     Analyse les threads pour trouver ceux qui nécessitent une relance.
+    Utilise le multithreading pour accélérer l'analyse de l'IA.
     """
-    # On cherche les messages envoyés sur les 30 derniers jours (pour limiter la charge)
     results = service.users().threads().list(userId='me', q='is:sent newer_than:30d', maxResults=max_results).execute()
     threads = results.get('threads', [])
     
-    opportunities = []
+    # 1. On liste d'abord toutes les opportunités SANS l'IA (C'est très rapide)
+    raw_opportunities = []
     
     for t in threads:
-        # On récupère tout l'historique de la conversation
         thread_data = service.users().threads().get(userId='me', id=t['id']).execute()
         messages = thread_data.get('messages', [])
         
         if not messages:
             continue
             
-        last_message = messages[-1] # Le message le plus récent est toujours à la fin
+        last_message = messages[-1]
         
-        # 1. Vérifier si le dernier message a été envoyé par l'utilisateur
-        # L'API Gmail ajoute le label "SENT" si le message vient de nous
         if 'SENT' not in last_message.get('labelIds', []):
-            continue # Le dernier message ne vient pas de nous, on ignore (le prospect a répondu)
+            continue 
             
-        # 2. Vérifier si le délai est dépassé
-        # L'API renvoie la date en millisecondes depuis 1970
         timestamp_ms = int(last_message['internalDate'])
         last_date = datetime.fromtimestamp(timestamp_ms / 1000.0, tz=timezone.utc)
-        
-        # On calcule la différence avec aujourd'hui
         time_elapsed = datetime.now(timezone.utc) - last_date
         
         if time_elapsed.days >= days_threshold:
-            # === C'EST UNE OPPORTUNITÉ DE RELANCE ! ===
-            
-            # On extrait le sujet et le destinataire pour l'affichage
             headers = last_message['payload']['headers']
             subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'Sans objet')
             to_email = next((h['value'] for h in headers if h['name'].lower() == 'to'), 'Inconnu')
+            snippet = t.get('snippet', '')
             
-            opportunities.append({
+            raw_opportunities.append({
                 "thread_id": t['id'],
                 "subject": subject,
                 "recipient": to_email,
                 "last_message_date": last_date.strftime("%Y-%m-%d %H:%M"),
-                "days_waiting": time_elapsed.days
+                "days_waiting": time_elapsed.days,
+                "snippet": snippet
             })
+
+    # 2. FONCTION TRAVAILLEUR : Ce que chaque thread va exécuter en parallèle
+    def enrich_with_intent(opp):
+        try:
+            intent_data = analyze_thread_intent(opp['snippet'])
+            opp["intent_category"] = intent_data.get("categorie", "OUBLI")
+            opp["intent_reason"] = intent_data.get("raison", "Analyse non disponible")
+        except Exception as e:
+            opp["intent_category"] = "OUBLI"
+            opp["intent_reason"] = "Erreur IA"
+        return opp
+
+    opportunities = []
+    
+    # 3. LE MULTITHREADING : On lance les requêtes IA toutes en même temps !
+    if raw_opportunities:
+        # max_workers=5 signifie qu'on interroge Gemini pour 5 mails en même temps
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            opportunities = list(executor.map(enrich_with_intent, raw_opportunities))
             
     return opportunities
 

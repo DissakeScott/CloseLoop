@@ -1,6 +1,7 @@
 import os
 from google import genai
 from google.genai import types
+import json
 
 # On récupère la clé API depuis les variables d'environnement
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -61,3 +62,34 @@ def generate_followup_draft(thread_summary: str, user_style_examples: list[str] 
         print(f"Erreur Gemini lors de la génération : {str(e)}")
         # En production, on enverrait aussi cette erreur à Sentry !
         return "Une erreur est survenue lors de la génération du brouillon. Veuillez réessayer."
+
+def analyze_thread_intent(prospect_snippet: str) -> dict:
+    """
+    Analyse le dernier message d'un prospect pour catégoriser son intention.
+    """
+    prompt = f"""
+    Tu es un expert en analyse commerciale. Lis ce court extrait du dernier email d'un prospect : "{prospect_snippet}"
+    
+    Classe ce message dans l'une de ces 3 catégories strictes :
+    - OUBLI : Le prospect semblait intéressé mais n'a pas donné suite (ex: "Je regarde", "Intéressant", demande de devis...).
+    - ATTENTE : Le prospect a explicitement demandé du temps (ex: "En congé", "Recontactez-moi en septembre", "Pas le temps cette semaine").
+    - OBJECTION : Le prospect exprime un frein ou un refus (ex: "Trop cher", "On a pris quelqu'un d'autre", "Pas besoin").
+
+    Réponds UNIQUEMENT par un objet JSON valide (sans aucun formatage Markdown ou texte autour) au format exact suivant :
+    {{"categorie": "OUBLI", "raison": "une phrase très courte de 6 mots max expliquant pourquoi"}}
+    """
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        
+        # Nettoyage de la réponse au cas où Gemini rajoute des balises ```json ... ```
+        clean_text = response.text.replace('```json', '').replace('```', '').strip()
+        return json.loads(clean_text)
+        
+    except Exception as e:
+        print(f"Erreur d'analyse d'intention : {e}")
+        # Valeur de repli sécurisée en cas d'erreur de l'IA
+        return {"categorie": "OUBLI", "raison": "Analyse non disponible"}
