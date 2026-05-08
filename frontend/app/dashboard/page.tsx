@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchOpportunities, generateDraft, sendReply } from "@/lib/api";
-import { RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, Mail, LogOut } from "lucide-react";
+import { RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut } from "lucide-react";
 
 export default function Dashboard() {
   const [opportunities, setOpportunities] = useState([]);
@@ -9,7 +9,6 @@ export default function Dashboard() {
   
   // --- ÉTATS ---
   const [userEmail, setUserEmail] = useState("");
-  const [activeTone, setActiveTone] = useState("naturel");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedThread, setSelectedThread] = useState<any>(null);
   const [draftText, setDraftText] = useState("");
@@ -80,19 +79,19 @@ export default function Dashboard() {
     window.location.href = "/";
   };
 
-  const handleGenerateClick = async (opp: any, tone: string = "naturel") => {
+  const handleGenerateClick = async (opp: any) => {
     setSelectedThread(opp);
-    setActiveTone(tone); 
     setIsModalOpen(true);
     setIsGenerating(true);
-    setDraftText(""); // On s'assure de vider le texte précédent
+    setDraftText(""); 
 
     try {
       const acc = localStorage.getItem('access_token') || "";
       const ref = localStorage.getItem('refresh_token') || "";
-      const result = await generateDraft(opp.thread_id, acc, ref, tone);
       
-      // SÉCURITÉ : On s'assure que même si l'API renvoie undefined, on met une chaîne vide
+      // L'appel ne nécessite plus le paramètre 'tone' !
+      const result = await generateDraft(opp.thread_id, acc, ref);
+      
       setDraftText(result.ai_draft || "Désolé, l'IA n'a pas pu générer le texte. Veuillez réessayer.");
     } catch (error: any) {
       if (error.message === "AUTH_EXPIRED") {
@@ -133,7 +132,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50">
       
-      {/* --- LE HEADER --- */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -168,7 +166,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* --- LE CONTENU PRINCIPAL --- */}
       <main className="p-8 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -207,7 +204,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <button 
-                  onClick={() => handleGenerateClick(opp, "naturel")}
+                  onClick={() => handleGenerateClick(opp)}
                   className="flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-xl transition-all font-medium shadow-sm hover:shadow opacity-90 group-hover:opacity-100"
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -219,7 +216,6 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* --- LA MODALE --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-40">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-100">
@@ -238,37 +234,13 @@ export default function Dashboard() {
 
             <div className="p-6 bg-slate-50 flex-1 flex flex-col">
               
-              {/* --- BARRE DE SÉLECTION DU TON --- */}
-              <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                {[
-                  { id: 'naturel', label: '👋 Naturel' },
-                  { id: 'formel', label: '👔 Formel' },
-                  { id: 'direct', label: '🎯 Direct' },
-                  { id: 'court', label: '⚡ Très court' }
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => handleGenerateClick(selectedThread, t.id)}
-                    disabled={isGenerating || isSending}
-                    className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all whitespace-nowrap ${
-                      activeTone === t.id
-                        ? 'bg-blue-100 text-blue-700 border-2 border-blue-200'
-                        : 'bg-white text-slate-600 border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                    } disabled:opacity-50`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* --- ZONE DE TEXTE --- */}
               {isGenerating ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-500 gap-4 flex-1">
                   <div className="relative">
                     <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
                     <div className="absolute inset-0 bg-blue-400 blur-xl opacity-20 rounded-full"></div>
                   </div>
-                  <p className="font-medium animate-pulse">Nous ajustons le ton de votre relance...</p>
+                  <p className="font-medium animate-pulse">L'IA clone votre style et rédige la relance...</p>
                 </div>
               ) : (
                 <textarea
@@ -287,7 +259,6 @@ export default function Dashboard() {
               >
                 Annuler
               </button>
-              {/* SÉCURITÉ : !draftText?.trim() au lieu de !draftText.trim() */}
               <button 
                 onClick={handleSendClick}
                 disabled={isGenerating || isSending || !draftText?.trim()}
@@ -301,7 +272,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* --- LE TOAST DE NOTIFICATION --- */}
       {toast && (
         <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-bottom-5 border border-slate-700">
           {toast.type === 'success' ? (
