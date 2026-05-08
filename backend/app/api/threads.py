@@ -96,7 +96,7 @@ def send_followup_reply(thread_id: str, payload: SendReplyPayload, db: Session =
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
         
-    if user.plan == "free" and user.used_quota >= 5:
+    if user.plan == "free" and user.used_quota >= 3:
         raise HTTPException(
             status_code=402, # 402 = Payment Required
             detail="QUOTA_REACHED"
