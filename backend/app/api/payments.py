@@ -29,7 +29,7 @@ def create_checkout_session(payload: CheckoutPayload, db: Session = Depends(get_
     try:
         # L'URL où Stripe va renvoyer l'utilisateur après le paiement (ou l'annulation)
         # Pour le moment on met le localhost pour tes tests, on changera pour Vercel plus tard !
-        domain_url = "http://localhost:3000" 
+        domain_url = "https://close-loop-liard.vercel.app"
         
         # 2. Création de la session Stripe
         checkout_session = stripe.checkout.Session.create(
