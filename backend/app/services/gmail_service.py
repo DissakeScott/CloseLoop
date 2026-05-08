@@ -184,26 +184,82 @@ def get_user_style_examples(service, max_results=5):
 
 
 def send_summary_email(service, user_email: str, opp_count: int):
-    """Envoie un email récapitulatif à l'utilisateur (depuis sa propre adresse)"""
+    """Envoie un email récapitulatif au format HTML Premium"""
     message = EmailMessage()
     
-    # Le corps de l'email
-    corps_email = f"""Bonjour ! 🚀
-
-Ton assistant CloseLoop a travaillé pendant que tu dormais.
-Il a identifié {opp_count} opportunité(s) de relance cruciale(s) ce matin.
-
-👉 Connecte-toi vite sur ton Dashboard pour cloner ton style et les envoyer en 1 clic : 
-https://close-loop-liard.vercel.app/  
-
-À très vite,
-L'équipe (robotique) CloseLoop 🤖
-"""
-    message.set_content(corps_email)
-    
+    # 1. Le sujet de l'email
+    message['Subject'] = f"🔔 {opp_count} opportunité(s) de relance en attente"
+    message['From'] = f"CloseLoop IA <{user_email}>" # Ajoute un joli nom d'expéditeur
     message['To'] = user_email
-    message['From'] = user_email # Il s'envoie le mail à lui-même
-    message['Subject'] = f"🔔 [CloseLoop] {opp_count} relances prêtes pour aujourd'hui !"
+    
+    # 2. Le texte de secours (obligatoire pour les vieux clients mail ou les montres connectées)
+    text_fallback = f"""Bonjour ! 
+CloseLoop a identifié {opp_count} opportunité(s) de relance ce matin.
+Traitez-les ici : https://close-loop-liard.vercel.app/dashboard
+"""
+    message.set_content(text_fallback)
+    
+    # 3. Le beau design HTML (Le vrai rendu visuel)
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 40px 20px;">
+            <tr>
+                <td align="center">
+                    <table width="100%" max-width="600px" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 600px;">
+                        
+                        <tr>
+                            <td align="center" style="padding: 30px 40px; border-bottom: 1px solid #f1f5f9;">
+                                <h1 style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Close<span style="color: #2563eb;">Loop</span></h1>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td style="padding: 40px;">
+                                <h2 style="margin-top: 0; color: #1e293b; font-size: 20px; font-weight: 600;">Bonjour, 👋</h2>
+                                <p style="color: #475569; font-size: 16px; line-height: 24px; margin-bottom: 30px;">
+                                    Ton assistant virtuel a scanné ta boîte mail pendant que tu dormais. Nous avons identifié <strong style="color: #0f172a; font-weight: 700;">{opp_count} opportunité(s) de relance cruciale(s)</strong> qui n'attendent plus que ton approbation.
+                                </p>
+                                
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                                    <tr>
+                                        <td align="center">
+                                            <a href="https://close-loop-liard.vercel.app/dashboard" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 28px; border-radius: 10px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);">
+                                                Traiter mes relances
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <p style="color: #475569; font-size: 14px; line-height: 24px; margin-top: 30px; text-align: center;">
+                                    L'IA a déjà pré-rédigé les brouillons en clonant ton style d'écriture. Il ne te reste plus qu'à valider.
+                                </p>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td align="center" style="background-color: #f8fafc; padding: 20px; border-top: 1px solid #f1f5f9;">
+                                <p style="margin: 0; color: #94a3b8; font-size: 12px;">
+                                    Généré automatiquement par l'intelligence artificielle de CloseLoop.<br>
+                                    Tu reçois cet email car le scan automatique est activé.
+                                </p>
+                            </td>
+                        </tr>
+                        
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    
+    # On ajoute le HTML au message
+    message.add_alternative(html_content, subtype='html')
     
     # Encodage et envoi
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
@@ -211,6 +267,6 @@ L'équipe (robotique) CloseLoop 🤖
     
     try:
         service.users().messages().send(userId="me", body=create_message).execute()
-        print(f"📧 Notification envoyée avec succès à {user_email}")
+        print(f"📧 Notification HTML envoyée avec succès à {user_email}")
     except Exception as e:
-        print(f"❌ Erreur lors de l'envoi de la notification à {user_email}: {e}")
+        print(f"❌ Erreur lors de l'envoi de la notification HTML à {user_email}: {e}")
