@@ -31,18 +31,25 @@ export async function generateDraft(threadId: string, accessToken: string, refre
   return response.json();
 }
 
-export async function sendReply(threadId: string, accessToken: string, refreshToken: string, draftText: string) {
-  const response = await fetch(`${API_URL}/threads/${threadId}/send`, {
+export const sendReply = async (threadId: string, accessToken: string, refreshToken: string, draftText: string, email: string) => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const response = await fetch(`${apiUrl}/threads/${threadId}/send`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
       access_token: accessToken, 
-      refresh_token: refreshToken,
-      draft_text: draftText 
+      refresh_token: refreshToken, 
+      draft_text: draftText,
+      email: email 
     }),
   });
-  if (response.status === 401) {
-    throw new Error("AUTH_EXPIRED"); // On lance un mot-clé précis
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    if (errorData.detail === "QUOTA_REACHED") {
+      throw new Error("QUOTA_REACHED");
+    }
+    throw new Error(errorData.detail || "Erreur d'envoi");
   }
   return response.json();
-}
+};

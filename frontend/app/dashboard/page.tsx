@@ -1,16 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchOpportunities, generateDraft, sendReply } from "@/lib/api";
-// On ajoute l'icône Search à la liste !
 import { RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut, Info, Search } from "lucide-react";
 
 export default function Dashboard() {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // --- NOUVEL ÉTAT POUR LA RECHERCHE ---
+  // --- NOUVEAU : ÉTAT POUR LES STATISTIQUES BUSINESS ---
+  const [userStats, setUserStats] = useState({ plan: "free", used_quota: 0, revenue_recovered: 0 });
+  
   const [searchQuery, setSearchQuery] = useState("");
-
   const [userEmail, setUserEmail] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedThread, setSelectedThread] = useState<any>(null);
@@ -46,13 +46,15 @@ export default function Dashboard() {
     if (savedEmail) setUserEmail(savedEmail);
 
     if (savedAccess) {
-      loadData(savedAccess, savedRefresh || "");
+      // MODIFIÉ : On passe l'email à loadData pour récupérer les statistiques
+      loadData(savedAccess, savedRefresh || "", savedEmail || "");
     } else {
       window.location.href = "/";
     }
   }, []);
 
-  const loadData = async (acc: string, ref: string) => {
+  // MODIFIÉ : Ajout du paramètre email
+  const loadData = async (acc: string, ref: string, email: string) => {
     setLoading(true);
     try {
       const result = await fetchOpportunities(acc, ref);
@@ -65,6 +67,17 @@ export default function Dashboard() {
       });
       
       setOpportunities(sortedOpportunities);
+
+      // --- NOUVEAU : RÉCUPÉRATION DES STATS POUR LE DASHBOARD ROI ---
+      if (email) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const statsRes = await fetch(`${apiUrl}/threads/stats/${email}`);
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          setUserStats(stats);
+        }
+      }
+
     } catch (error: any) {
       if (error.message === "AUTH_EXPIRED") {
         showToast("Session expirée. Redirection en cours...", "error");
@@ -80,7 +93,8 @@ export default function Dashboard() {
   const handleManualRefresh = () => {
     const acc = localStorage.getItem('access_token');
     const ref = localStorage.getItem('refresh_token');
-    if (acc) loadData(acc, ref || "");
+    // MODIFIÉ : On passe l'email courant
+    if (acc) loadData(acc, ref || "", userEmail);
   };
 
   const handleLogout = () => {
@@ -109,17 +123,40 @@ export default function Dashboard() {
     }
   };
 
-  const handleSendClick = async () => {
+const handleSendClick = async () => {
     setIsSending(true);
     try {
       const acc = localStorage.getItem('access_token') || "";
       const ref = localStorage.getItem('refresh_token') || "";
-      await sendReply(selectedThread.thread_id, acc, ref, draftText);
+      
+      // 1. On envoie la relance via l'API
+      await sendReply(selectedThread.thread_id, acc, ref, draftText, userEmail);
+      
       setIsModalOpen(false);
-      showToast("🚀 Relance envoyée avec succès !"); 
-      loadData(acc, ref); 
+      showToast("🚀 Relance envoyée !"); 
+      
+      // --- ✨ MAGIE UX : OPTIMISTIC UI ✨ ---
+      // Au lieu d'appeler loadData() qui prend 5 secondes à re-scanner Gmail,
+      // on met à jour l'interface instantanément !
+      
+      // 1. On incrémente le quota et le ROI visuellement
+      setUserStats((prevStats) => ({
+        ...prevStats,
+        used_quota: prevStats.used_quota + 1,
+        revenue_recovered: prevStats.revenue_recovered + 500
+      }));
+
+      // 2. On retire l'email qui vient d'être traité de la liste
+      setOpportunities((prevOpps) => 
+        prevOpps.filter((opp: any) => opp.thread_id !== selectedThread.thread_id)
+      );
+      
     } catch (error: any) {
-      showToast("Erreur lors de l'envoi.", "error");
+      if (error.message === "QUOTA_REACHED") {
+        showToast("Limites du plan gratuit atteintes ! Passez au plan Pro.", "error");
+      } else {
+        showToast("Erreur lors de l'envoi.", "error");
+      }
     } finally {
       setIsSending(false);
     }
@@ -134,7 +171,6 @@ export default function Dashboard() {
     }
   };
 
-  // --- LOGIQUE DE FILTRAGE ---
   const filteredOpportunities = opportunities.filter((opp: any) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -168,6 +204,39 @@ export default function Dashboard() {
 
       <main className="p-8 max-w-6xl mx-auto">
         
+        {/* --- NOUVEAU : WIDGETS BUSINESS (QUOTA ET ROI) --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          
+          {/* Widget Quota */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-bold text-slate-700">Relances ce mois-ci</h3>
+              <span className={`text-xs font-bold px-2 py-1 rounded-md ${userStats.plan === 'pro' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'}`}>
+                Plan {userStats.plan.toUpperCase()}
+              </span>
+            </div>
+            {userStats.plan === "free" ? (
+              <>
+                <div className="w-full bg-slate-100 rounded-full h-2.5 mb-2">
+                  <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${(userStats.used_quota / 5) * 100}%` }}></div>
+                </div>
+                <p className="text-sm text-slate-500">{userStats.used_quota} / 5 relances gratuites utilisées</p>
+              </>
+            ) : (
+              <p className="text-sm font-medium text-emerald-600 flex items-center gap-2">✨ Relances illimitées débloquées</p>
+            )}
+          </div>
+
+          {/* Widget ROI (Retour sur Investissement) */}
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-2xl border border-emerald-600 shadow-md text-white flex flex-col justify-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-20 text-6xl">💸</div>
+            <h3 className="font-medium text-emerald-100 mb-1 z-10">Revenus potentiels récupérés</h3>
+            <p className="text-4xl font-extrabold z-10">{userStats.revenue_recovered.toLocaleString('fr-FR')} €</p>
+            <p className="text-xs text-emerald-100 mt-2 z-10">*Basé sur une valeur moyenne de 500€ par relance sauvée</p>
+          </div>
+          
+        </div>
+
         {/* --- EN-TÊTE AVEC RECHERCHE --- */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
@@ -176,7 +245,6 @@ export default function Dashboard() {
           </div>
           
           <div className="flex w-full md:w-auto items-center gap-3">
-            {/* LA BARRE DE RECHERCHE */}
             <div className="relative w-full md:w-72">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -188,7 +256,6 @@ export default function Dashboard() {
               />
             </div>
             
-            {/* LE BOUTON ACTUALISER */}
             <button onClick={handleManualRefresh} disabled={loading} className="flex shrink-0 items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-all font-medium shadow-sm">
               <RefreshCw className={`w-4 h-4 text-blue-600 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{loading ? "Actualisation..." : "Actualiser"}</span>
@@ -197,7 +264,6 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-4">
-          {/* SI AUCUNE OPPORTUNITÉ GLOBALE */}
           {opportunities.length === 0 && !loading && (
             <div className="text-center py-24 border-2 border-dashed border-slate-200 rounded-3xl bg-white text-slate-500">
               <p className="text-lg font-medium mb-2">Tout est à jour ! 🎉</p>
@@ -205,7 +271,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* SI LA RECHERCHE NE DONNE RIEN */}
           {opportunities.length > 0 && filteredOpportunities.length === 0 && (
             <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-3xl bg-white text-slate-500">
               <p className="text-lg font-medium mb-2">Aucun résultat trouvé 🕵️‍♂️</p>
@@ -213,7 +278,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ON MAP SUR filteredOpportunities AU LIEU DE opportunities */}
           {filteredOpportunities.map((opp: any) => (
             <div key={opp.thread_id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-200 group">
               <div className="flex justify-between items-start">
@@ -260,7 +324,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* --- MODALE ET TOAST (inchangés) --- */}
+      {/* --- MODALE ET TOAST --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-40">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-100">
