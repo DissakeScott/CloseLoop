@@ -1,76 +1,63 @@
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
-# Configuration de la clé API
-api_key = os.getenv("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
-else:
-    print("⚠️ ATTENTION : La variable GEMINI_API_KEY est introuvable !")
+# On récupère la clé API depuis les variables d'environnement
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-def get_best_model():
-    """Demande à Google la liste exacte des modèles autorisés et choisit le plus rapide (Flash)."""
-    available_models = []
-    try:
-        # On demande à Google ce à quoi on a droit
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods:
-                available_models.append(m.name)
-        
-        print("✅ Modèles autorisés :", available_models)
-        
-        # 1. On cherche en priorité la toute dernière version Flash (très rapide, gros quota)
-        for m in available_models:
-            if "models/gemini-2.5-flash" == m: return m
-            
-        # 2. Plan B : le raccourci vers la dernière version Flash stable
-        for m in available_models:
-            if "models/gemini-flash-latest" == m: return m
-            
-        # 3. Plan C : l'ancienne version Flash
-        for m in available_models:
-            if "models/gemini-2.0-flash" == m: return m
-            
-        # Si aucun favori n'est là, on prend le premier de la liste
-        return available_models[0]
-    except Exception as e:
-        print("Impossible de lister les modèles :", e)
-        return "models/gemini-2.5-flash"
+if not GEMINI_API_KEY:
+    raise ValueError("FATAL ERROR: GEMINI_API_KEY manquante dans le fichier .env")
 
-def generate_draft(email_content: str, tone: str = "naturel") -> str:
-    """Génère un brouillon de relance avec un ton spécifique"""
-    
-    tone_instructions = {
-        "naturel": "Le ton doit être poli, naturel, professionnel, et sans aucune pression.",
-        "formel": "Le ton doit être très soutenu, extrêmement poli et utiliser le vouvoiement de rigueur.",
-        "direct": "Le ton doit être direct, persuasif, orienté résultat et aller droit au but sans fioriture.",
-        "court": "Le message doit être extrêmement court (1 ou 2 phrases maximum), percutant et très rapide à lire."
-    }
-    
-    instruction = tone_instructions.get(tone, tone_instructions["naturel"])
-    
-    prompt = f"""
-    Tu es un expert en communication professionnelle et en vente.
-    Voici le dernier email que j'ai envoyé à un contact, et qui est resté sans réponse :
-    
-    "{email_content}"
-    
-    Rédige un e-mail de relance.
-    {instruction}
-    Ne mets pas d'objet (Subject), génère uniquement le corps du message.
-    Ne mets pas de balises inutiles, juste le texte prêt à être envoyé.
+# Initialisation du nouveau client Google GenAI
+client = genai.Client(api_key=GEMINI_API_KEY)
+
+def generate_followup_draft(thread_summary: str, user_style_examples: list[str] = None) -> str:
     """
+    Génère un brouillon de relance en imitant le style de l'utilisateur (RAG).
+    """
+    # 1. PRÉPARATION DU RAG (Clonage de style)
+    style_context = ""
+    if user_style_examples and len(user_style_examples) > 0:
+        style_context = (
+            "\n--- STYLE D'ÉCRITURE À CLONER ---\n"
+            "Voici des exemples d'emails que j'ai écrits dans le passé. "
+            "Analyse mon ton (formel ou décontracté), ma façon de dire bonjour et au revoir, "
+            "la longueur de mes phrases et ma ponctuation. "
+            "TU DOIS RÉDIGER LA RELANCE EXACTEMENT DANS CE STYLE, comme si c'était moi qui l'avais écrite :\n\n"
+        )
+        for i, example in enumerate(user_style_examples):
+            style_context += f"Exemple {i+1}:\n{example}\n\n"
+    else:
+        # Style par défaut si c'est un nouvel utilisateur sans historique
+        style_context = "\nÉcris avec un ton professionnel, clair, concis et légèrement chaleureux."
+
+    # 2. CONSTRUCTION DU PROMPT MAÎTRE
+    prompt = f"""
+    Tu es un assistant expert en vente et en relance client.
+    Ton but est de rédiger un email de relance (warm follow-up) pour un prospect qui ne répond plus.
+
+    --- CONTEXTE DU FIL DE DISCUSSION ---
+    {thread_summary}
+
+    {style_context}
+
+    --- RÈGLES STRICTES ---
+    1. L'email doit être prêt à être envoyé (pas de balises [Nom du prospect] si tu connais son nom).
+    2. Ne sois pas agressif, la relance doit sembler naturelle (peut-être un simple oubli du prospect).
+    3. Vas droit au but.
     
+    Rédige uniquement le corps de l'email, sans objet.
+    """
+
+    # 3. APPEL À LA NOUVELLE API GEMINI
     try:
-        # On récupère le modèle blindé !
-        model_name = get_best_model()
-        print(f"🤖 L'IA lance la génération avec : {model_name}")
-        
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
-        return response.text.strip()
+        # On utilise gemini-2.5-flash (le plus rapide et le plus performant pour le texte)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
+        return response.text
     except Exception as e:
-        print("🚨" * 10)
-        print(f"ERREUR CRITIQUE GEMINI : {str(e)}")
-        print("🚨" * 10)
-        raise Exception(f"Erreur Gemini : {str(e)}")
+        print(f"Erreur Gemini lors de la génération : {str(e)}")
+        # En production, on enverrait aussi cette erreur à Sentry !
+        return "Une erreur est survenue lors de la génération du brouillon. Veuillez réessayer."
