@@ -2,9 +2,9 @@ import os
 from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from app.models.database import User, get_db
-from app.services.gmail_service import build_gmail_service, get_followup_opportunities
 from app.core.security import decrypt_token
 from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+from app.services.gmail_service import build_gmail_service, get_followup_opportunities, send_summary_email
 
 router = APIRouter()
 
@@ -41,12 +41,14 @@ def trigger_background_scans(authorization: str = Header(None), db: Session = De
             # On cherche les opportunités (avec un seuil de 3 jours)
             opportunities = get_followup_opportunities(service, days_threshold=3)
             
+              
             if opportunities:
                 print(f"🔔 {len(opportunities)} opportunités trouvées pour {user.email}")
                 total_opportunities += len(opportunities)
                 
-                # NOUVEAUTÉ À VENIR : Ici, on insèrera la ligne pour envoyer un email de notification !
-                
+                # NOUVEAU : Envoi de l'email récapitulatif !
+                send_summary_email(service, user.email, len(opportunities))
+        
         except Exception as e:
             print(f"Erreur lors du scan pour {user.email}: {e}")
             # Si le token d'un utilisateur a expiré, on l'ignore et on passe au suivant

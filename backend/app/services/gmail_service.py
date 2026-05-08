@@ -181,3 +181,36 @@ def get_user_style_examples(service, max_results=5):
             style_examples.append(decoded_body[:500]) # On limite à 500 caractères par exemple
             
     return style_examples
+
+
+def send_summary_email(service, user_email: str, opp_count: int):
+    """Envoie un email récapitulatif à l'utilisateur (depuis sa propre adresse)"""
+    message = EmailMessage()
+    
+    # Le corps de l'email
+    corps_email = f"""Bonjour ! 🚀
+
+Ton assistant CloseLoop a travaillé pendant que tu dormais.
+Il a identifié {opp_count} opportunité(s) de relance cruciale(s) ce matin.
+
+👉 Connecte-toi vite sur ton Dashboard pour cloner ton style et les envoyer en 1 clic : 
+https://close-loop-liard.vercel.app/  
+
+À très vite,
+L'équipe (robotique) CloseLoop 🤖
+"""
+    message.set_content(corps_email)
+    
+    message['To'] = user_email
+    message['From'] = user_email # Il s'envoie le mail à lui-même
+    message['Subject'] = f"🔔 [CloseLoop] {opp_count} relances prêtes pour aujourd'hui !"
+    
+    # Encodage et envoi
+    encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    create_message = {'raw': encoded_message}
+    
+    try:
+        service.users().messages().send(userId="me", body=create_message).execute()
+        print(f"📧 Notification envoyée avec succès à {user_email}")
+    except Exception as e:
+        print(f"❌ Erreur lors de l'envoi de la notification à {user_email}: {e}")
