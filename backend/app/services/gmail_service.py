@@ -189,7 +189,7 @@ def send_summary_email(service, user_email: str, opp_count: int):
     
     # 1. Le sujet de l'email
     message['Subject'] = f"🔔 {opp_count} opportunité(s) de relance en attente"
-    message['From'] = f"CloseLoop IA <{user_email}>" # Ajoute un joli nom d'expéditeur
+    message['From'] = f"CloseLoop <{user_email}>" # Ajoute un joli nom d'expéditeur
     message['To'] = user_email
     
     # 2. Le texte de secours (obligatoire pour les vieux clients mail ou les montres connectées)
@@ -222,7 +222,7 @@ Traitez-les ici : https://close-loop-liard.vercel.app/dashboard
                             <td style="padding: 40px;">
                                 <h2 style="margin-top: 0; color: #1e293b; font-size: 20px; font-weight: 600;">Bonjour, 👋</h2>
                                 <p style="color: #475569; font-size: 16px; line-height: 24px; margin-bottom: 30px;">
-                                    Ton assistant virtuel a scanné ta boîte mail pendant que tu dormais. Nous avons identifié <strong style="color: #0f172a; font-weight: 700;">{opp_count} opportunité(s) de relance cruciale(s)</strong> qui n'attendent plus que ton approbation.
+                                    Ton assistant virtuel a scanné ta boîte mail lors de ton inactivité. Nous avons identifié <strong style="color: #0f172a; font-weight: 700;">{opp_count} opportunité(s) de relance cruciale(s)</strong> qui n'attendent plus que ton approbation.
                                 </p>
                                 
                                 <table width="100%" border="0" cellspacing="0" cellpadding="0">

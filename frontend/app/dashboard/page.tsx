@@ -150,7 +150,7 @@ export default function Dashboard() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="CloseLoop" className="w-10 h-10 object-contain drop-shadow-sm" />
-            <span className="font-extrabold text-xl text-slate-900 tracking-tight">CloseLoop</span>
+            <span className="font-extrabold text-xl text-slate-900 tracking-tight">Close<span style={{ color: "#4d99d3" }}>Loop</span></span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 bg-slate-50 py-1.5 px-2 pr-4 rounded-full border border-slate-200">
