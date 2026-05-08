@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import auth # On importe nos routes d'auth
 from app.api import threads  # <-- AJOUT : Import du nouveau routeur
 from app.models.database import init_db
+from app.api.cron import router as cron_router
 
 init_db()
 
@@ -43,6 +44,8 @@ app.add_middleware(
 # On connecte le routeur. Les routes seront accessibles sous /auth/...
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(threads.router, prefix="/threads", tags=["Gmail Threads"])
+app.include_router(cron_router, prefix="/api/admin", tags=["Admin/Cron"])
+
 @app.get("/")
 def read_root():
     return {"message": "API Smart Follow-up opérationnelle 🚀"}
