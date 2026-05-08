@@ -22,3 +22,6 @@ celery
 
 # Pour le broker de messages de Celery, on peut utiliser Redis
 redis
+
+# --- Stripe pour la monétisation ---
+stripe

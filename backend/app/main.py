@@ -8,6 +8,7 @@ from app.api import auth # On importe nos routes d'auth
 from app.api import threads  # <-- AJOUT : Import du nouveau routeur
 from app.models.database import init_db
 from app.api.cron import router as cron_router
+from app.api.payments import router as payments_router
 
 init_db()
 
@@ -45,6 +46,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(threads.router, prefix="/threads", tags=["Gmail Threads"])
 app.include_router(cron_router, prefix="/api/admin", tags=["Admin/Cron"])
+app.include_router(payments_router, prefix="/api/payments", tags=["Payments/Stripe"])
 
 @app.get("/")
 def read_root():
