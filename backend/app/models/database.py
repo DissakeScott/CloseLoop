@@ -1,6 +1,6 @@
 # backend/app/models/database.py
 import os
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 import datetime
@@ -34,6 +34,12 @@ class User(Base):
     access_token = Column(String, nullable=False)
     refresh_token = Column(String, nullable=True) # Google ne le donne qu'à la première connexion !
     expires_at = Column(DateTime)
+
+    # --- NOUVEAUX CHAMPS MONÉTISATION ---
+    plan = Column(String, default="free") # 'free' ou 'pro'
+    used_quota = Column(Integer, default=0) # Remis à 0 chaque mois plus tard
+    revenue_recovered = Column(Float, default=0.0)
+    stripe_customer_id = Column(String, nullable=True)
 
 # Fonction pour créer les tables automatiquement
 def init_db():

@@ -1,7 +1,9 @@
 # backend/app/api/threads.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+from sqlalchemy.orm import Session
+from app.models.database import get_db, User
 
 # --- NOUVEAUX IMPORTS ---
 from app.services.ai_service import generate_followup_draft
@@ -30,6 +32,7 @@ class SendReplyPayload(BaseModel):
     access_token: str
     refresh_token: str
     draft_text: str
+    email : str
 
 
 @router.post("/opportunities")
@@ -85,17 +88,29 @@ def create_followup_draft(thread_id: str, payload: DraftPayload):
 
 
 @router.post("/{thread_id}/send")
-def send_followup_reply(thread_id: str, payload: SendReplyPayload):
-    """Envoie la relance définitive dans le thread Gmail"""
-    try:
-        service = build_gmail_service(
-            payload.access_token, 
-            payload.refresh_token, 
-            GOOGLE_CLIENT_ID, 
-            GOOGLE_CLIENT_SECRET
+def send_followup_reply(thread_id: str, payload: SendReplyPayload, db: Session = Depends(get_db)):
+    """Envoie la relance ET gère les quotas / ROI"""
+    
+    # 1. Vérification de l'utilisateur et de son quota
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+        
+    if user.plan == "free" and user.used_quota >= 5:
+        raise HTTPException(
+            status_code=402, # 402 = Payment Required
+            detail="QUOTA_REACHED"
         )
         
+    try:
+        # 2. Envoi de l'email
+        service = build_gmail_service(payload.access_token, payload.refresh_token, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
         result = send_email_reply(service, thread_id, payload.draft_text)
+        
+        # 3. Succès ! Mise à jour des statistiques (Business)
+        user.used_quota += 1
+        user.revenue_recovered += 500.0 # Valeur estimée d'une relance sauvée
+        db.commit()
         
         return {
             "status": "success",
@@ -103,6 +118,20 @@ def send_followup_reply(thread_id: str, payload: SendReplyPayload):
             "gmail_message_id": result['id']
         }
     except RefreshError:
-        raise HTTPException(status_code=401, detail="Session Google expirée. Veuillez vous reconnecter.")
+        raise HTTPException(status_code=401, detail="Session Google expirée.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'envoi : {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur d'envoi : {str(e)}")
+
+# --- NOUVELLE ROUTE POUR LE DASHBOARD ---
+@router.get("/stats/{email}")
+def get_user_stats(email: str, db: Session = Depends(get_db)):
+    """Renvoie les statistiques de l'utilisateur pour le Dashboard"""
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        return {"plan": "free", "used_quota": 0, "revenue_recovered": 0.0}
+        
+    return {
+        "plan": user.plan,
+        "used_quota": user.used_quota,
+        "revenue_recovered": user.revenue_recovered
+    }
