@@ -16,3 +16,9 @@ python-dotenv==1.2.2
 
 # --- Sentry pour le monitoring des erreurs ---
 sentry-sdk[fastapi]
+
+# --- Celery pour les tâches asynchrones ---
+celery
+
+# Pour le broker de messages de Celery, on peut utiliser Redis
+redis
