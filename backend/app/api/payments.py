@@ -72,10 +72,20 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None),
     except stripe.error.SignatureVerificationError as e:
         raise HTTPException(status_code=400, detail="Signature invalide")
 
-    # 3. Si le paiement est un succès !
+   # 3. Si le paiement est un succès !
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        customer_email = session.get('customer_email')
+        
+        # --- CORRECTION ICI ---
+        # On utilise getattr() car session est un StripeObject et n'a pas de méthode .get()
+        customer_email = getattr(session, 'customer_email', None)
+        
+        # Sécurité supplémentaire : si l'utilisateur a tapé son email manuellement, 
+        # Stripe le range parfois dans 'customer_details'
+        customer_details = getattr(session, 'customer_details', None)
+        if not customer_email and customer_details:
+            customer_email = getattr(customer_details, 'email', None)
+        # ----------------------
         
         if customer_email:
             # On cherche l'utilisateur dans notre base de données
