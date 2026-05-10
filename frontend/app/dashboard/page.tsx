@@ -1,15 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { generateDraft, sendReply } from "@/lib/api";
 import { RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut, Info, Search } from "lucide-react";
+// 💡 IMPORT DES NOUVELLES FONCTIONS SÉPARÉES (Lecture rapide vs Synchro lente)
+import { fetchOpportunities, syncOpportunities, generateDraft, sendReply } from "@/lib/api";
 
 export default function Dashboard() {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // ÉTAT POUR LES STATISTIQUES BUSINESS
   const [userStats, setUserStats] = useState({ plan: "free", used_quota: 0, revenue_recovered: 0 });
-  
   const [searchQuery, setSearchQuery] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,74 +45,70 @@ export default function Dashboard() {
     if (savedEmail) setUserEmail(savedEmail);
 
     if (savedAccess) {
+      // 💡 AU DÉMARRAGE : On lance UNIQUEMENT la lecture de la base de données
       loadData(savedEmail || "");
     } else {
       window.location.href = "/";
     }
   }, []);
 
-  // --- LECTURE INSTANTANÉE (0.1 seconde) ---
+  // --- ⚡ LECTURE INSTANTANÉE (0.1 seconde) ---
+  // 💡 Cette fonction ne fait plus appel à Gemini. Elle lit juste Supabase.
   const loadData = async (email: string) => {
     setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // 1. On utilise ta fonction GET rapide de api.ts
+      const result = await fetchOpportunities(email);
       
-      // 1. On lit les données depuis Supabase
-      const res = await fetch(`${apiUrl}/threads/opportunities?email=${encodeURIComponent(email)}`);
-      if (res.ok) {
-        const result = await res.json();
-        const sortedOpportunities = result.data.sort((a: any, b: any) => {
-          const rank: any = { "OUBLI": 1, "OBJECTION": 2, "ATTENTE": 3 };
-          // On gère category ou intent_category selon ton ancienne version
-          const rankA = rank[a.category || a.intent_category] || 4;
-          const rankB = rank[b.category || b.intent_category] || 4;
-          return rankA - rankB;
-        });
-        setOpportunities(sortedOpportunities);
-      }
+      const sortedOpportunities = result.data.sort((a: any, b: any) => {
+        const rank: any = { "OUBLI": 1, "OBJECTION": 2, "ATTENTE": 3 };
+        const catA = a.category || a.intent_category;
+        const catB = b.category || b.intent_category;
+        const rankA = rank[catA] || 4;
+        const rankB = rank[catB] || 4;
+        return rankA - rankB;
+      });
+      
+      setOpportunities(sortedOpportunities);
 
-      // 2. On récupère les stats
+      // 2. Récupération des statistiques
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const statsRes = await fetch(`${apiUrl}/threads/stats/${encodeURIComponent(email)}`);
       if (statsRes.ok) {
         const stats = await statsRes.json();
         setUserStats(stats);
       }
     } catch (error: any) {
-      showToast("Erreur lors du chargement des e-mails.", "error");
+      if (error.message === "AUTH_EXPIRED") {
+        showToast("Session expirée. Redirection en cours...", "error");
+        setTimeout(() => handleLogout(), 2000);
+      } else {
+        showToast("Erreur lors du chargement des e-mails.", "error");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // --- SYNCHRONISATION PROFONDE AVEC L'IA (40 secondes) ---
+  // --- 🤖 SYNCHRONISATION PROFONDE AVEC L'IA (40 secondes) ---
+  // 💡 Cette fonction n'est déclenchée QUE si l'utilisateur clique sur "Actualiser"
   const handleManualRefresh = async () => {
-    if (!userEmail) return;
     const acc = localStorage.getItem('access_token');
     const ref = localStorage.getItem('refresh_token');
+    
+    if (!userEmail || !acc) return;
 
     setLoading(true);
+    // 💡 On prévient l'utilisateur que ça va être long (car on réveille Gemini)
     showToast("L'IA analyse vos e-mails... (environ 40 secondes) 🤖", "info");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      // 1. Appel de ta fonction POST (qui lance le vrai travail d'IA sur le Backend)
+      await syncOpportunities(userEmail, acc, ref || "");
 
-      const syncRes = await fetch(`${apiUrl}/threads/sync-opportunities`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: userEmail,
-          access_token: acc,
-          refresh_token: ref 
-        })
-      });
-
-      if (!syncRes.ok) {
-        if (syncRes.status === 401) throw new Error("AUTH_EXPIRED");
-        throw new Error("Erreur de synchronisation");
-      }
-
-      // Dès que l'IA a fini, on relit la base de données instantanément
+      // 2. Dès que l'IA a fini de remplir Supabase, on relit la base instantanément !
       await loadData(userEmail);
+      
       showToast("Synchronisation terminée ! Vos opportunités sont à jour. ✨", "success");
 
     } catch (error: any) {
@@ -164,13 +159,14 @@ export default function Dashboard() {
       setIsModalOpen(false);
       showToast("🚀 Relance envoyée !"); 
       
-      // Optimistic UI : On met à jour l'interface sans recharger
+      // 💡 OPTIMISTIC UI : On met à jour les stats à l'écran sans recharger la page
       setUserStats((prevStats) => ({
         ...prevStats,
         used_quota: prevStats.used_quota + 1,
         revenue_recovered: prevStats.revenue_recovered + 500
       }));
 
+      // 💡 On fait disparaître l'email traité de la liste
       setOpportunities((prevOpps) => 
         prevOpps.filter((opp: any) => opp.thread_id !== selectedThread.thread_id)
       );
@@ -178,7 +174,6 @@ export default function Dashboard() {
     } catch (error: any) {
       if (error.message === "QUOTA_REACHED") {
         showToast("Redirection vers la page de paiement...", "error");
-        
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
           const stripeRes = await fetch(`${apiUrl}/api/payments/create-checkout-session`, {
@@ -186,7 +181,6 @@ export default function Dashboard() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: userEmail })
           });
-          
           if (stripeRes.ok) {
             const data = await stripeRes.json();
             window.location.href = data.checkout_url; 
@@ -194,7 +188,6 @@ export default function Dashboard() {
         } catch (stripeErr) {
           showToast("Erreur lors de la connexion à Stripe.", "error");
         }
-        
       } else {
         showToast("Erreur lors de l'envoi.", "error");
       }
