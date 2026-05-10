@@ -3,6 +3,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import datetime, timezone, timedelta
 import base64
+from app.models.database import get_db, User, Opportunity 
+from sqlalchemy.orm import Session
 import concurrent.futures
 from email.message import EmailMessage
 from app.services.ai_service import analyze_thread_intent
@@ -16,6 +18,30 @@ def build_gmail_service(access_token: str, refresh_token: str, client_id: str, c
         client_secret=client_secret
     )
     return build('gmail', 'v1', credentials=creds)
+
+def sync_opportunities_to_db(user_email: str, db: Session):
+    """Moteur interne : Fait travailler l'IA et sauvegarde dans Supabase"""
+    # 1. On récupère les opportunités via ton ancien système (Gmail + Gemini)
+    new_opportunities = get_followup_opportunities(user_email) 
+    
+    # 2. On nettoie les anciennes opportunités non traitées pour ce client
+    db.query(Opportunity).filter(Opportunity.user_email == user_email).delete()
+    
+    # 3. On enregistre les nouvelles pépites trouvées par l'IA
+    for opp in new_opportunities:
+        db_opp = Opportunity(
+            user_email=user_email,
+            thread_id=opp['id'],
+            subject=opp['subject'],
+            last_message_preview=opp['preview'],
+            category=opp['category'],
+            analysis_summary=opp['summary'],
+            # Attention : adapte cette ligne selon comment ton ancienne fonction renvoie la date
+            last_received_date=opp.get('date') 
+        )
+        db.add(db_opp)
+    
+    db.commit()
 
 def get_followup_opportunities(service, days_threshold=3, max_results=10):
     """

@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fetchOpportunities, generateDraft, sendReply } from "@/lib/api";
+import { generateDraft, sendReply } from "@/lib/api";
 import { RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut, Info, Search } from "lucide-react";
 
 export default function Dashboard() {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // --- NOUVEAU : ÉTAT POUR LES STATISTIQUES BUSINESS ---
+  // ÉTAT POUR LES STATISTIQUES BUSINESS
   const [userStats, setUserStats] = useState({ plan: "free", used_quota: 0, revenue_recovered: 0 });
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -17,9 +17,9 @@ export default function Dashboard() {
   const [draftText, setDraftText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
@@ -46,55 +46,85 @@ export default function Dashboard() {
     if (savedEmail) setUserEmail(savedEmail);
 
     if (savedAccess) {
-      // MODIFIÉ : On passe l'email à loadData pour récupérer les statistiques
-      loadData(savedAccess, savedRefresh || "", savedEmail || "");
+      loadData(savedEmail || "");
     } else {
       window.location.href = "/";
     }
   }, []);
 
-  // MODIFIÉ : Ajout du paramètre email
-  const loadData = async (acc: string, ref: string, email: string) => {
+  // --- LECTURE INSTANTANÉE (0.1 seconde) ---
+  const loadData = async (email: string) => {
     setLoading(true);
     try {
-      const result = await fetchOpportunities(acc, ref);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       
-      const sortedOpportunities = result.data.sort((a: any, b: any) => {
-        const rank: any = { "OUBLI": 1, "OBJECTION": 2, "ATTENTE": 3 };
-        const rankA = rank[a.intent_category] || 4;
-        const rankB = rank[b.intent_category] || 4;
-        return rankA - rankB;
-      });
-      
-      setOpportunities(sortedOpportunities);
-
-      // --- NOUVEAU : RÉCUPÉRATION DES STATS POUR LE DASHBOARD ROI ---
-      if (email) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        const statsRes = await fetch(`${apiUrl}/threads/stats/${email}`);
-        if (statsRes.ok) {
-          const stats = await statsRes.json();
-          setUserStats(stats);
-        }
+      // 1. On lit les données depuis Supabase
+      const res = await fetch(`${apiUrl}/threads/opportunities?email=${encodeURIComponent(email)}`);
+      if (res.ok) {
+        const result = await res.json();
+        const sortedOpportunities = result.data.sort((a: any, b: any) => {
+          const rank: any = { "OUBLI": 1, "OBJECTION": 2, "ATTENTE": 3 };
+          // On gère category ou intent_category selon ton ancienne version
+          const rankA = rank[a.category || a.intent_category] || 4;
+          const rankB = rank[b.category || b.intent_category] || 4;
+          return rankA - rankB;
+        });
+        setOpportunities(sortedOpportunities);
       }
+
+      // 2. On récupère les stats
+      const statsRes = await fetch(`${apiUrl}/threads/stats/${encodeURIComponent(email)}`);
+      if (statsRes.ok) {
+        const stats = await statsRes.json();
+        setUserStats(stats);
+      }
+    } catch (error: any) {
+      showToast("Erreur lors du chargement des e-mails.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- SYNCHRONISATION PROFONDE AVEC L'IA (40 secondes) ---
+  const handleManualRefresh = async () => {
+    if (!userEmail) return;
+    const acc = localStorage.getItem('access_token');
+    const ref = localStorage.getItem('refresh_token');
+
+    setLoading(true);
+    showToast("L'IA analyse vos e-mails... (environ 40 secondes) 🤖", "info");
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+      const syncRes = await fetch(`${apiUrl}/threads/sync-opportunities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: userEmail,
+          access_token: acc,
+          refresh_token: ref 
+        })
+      });
+
+      if (!syncRes.ok) {
+        if (syncRes.status === 401) throw new Error("AUTH_EXPIRED");
+        throw new Error("Erreur de synchronisation");
+      }
+
+      // Dès que l'IA a fini, on relit la base de données instantanément
+      await loadData(userEmail);
+      showToast("Synchronisation terminée ! Vos opportunités sont à jour. ✨", "success");
 
     } catch (error: any) {
       if (error.message === "AUTH_EXPIRED") {
         showToast("Session expirée. Redirection en cours...", "error");
         setTimeout(() => handleLogout(), 2000);
       } else {
-        showToast("Erreur lors du chargement des e-mails.", "error");
+        showToast("Erreur lors de la synchronisation.", "error");
       }
-    } finally {
       setLoading(false);
     }
-  };
-
-  const handleManualRefresh = () => {
-    const acc = localStorage.getItem('access_token');
-    const ref = localStorage.getItem('refresh_token');
-    // MODIFIÉ : On passe l'email courant
-    if (acc) loadData(acc, ref || "", userEmail);
   };
 
   const handleLogout = () => {
@@ -123,30 +153,24 @@ export default function Dashboard() {
     }
   };
 
-const handleSendClick = async () => {
+  const handleSendClick = async () => {
     setIsSending(true);
     try {
       const acc = localStorage.getItem('access_token') || "";
       const ref = localStorage.getItem('refresh_token') || "";
       
-      // 1. On envoie la relance via l'API
       await sendReply(selectedThread.thread_id, acc, ref, draftText, userEmail);
       
       setIsModalOpen(false);
       showToast("🚀 Relance envoyée !"); 
       
-      // --- ✨ MAGIE UX : OPTIMISTIC UI ✨ ---
-      // Au lieu d'appeler loadData() qui prend 5 secondes à re-scanner Gmail,
-      // on met à jour l'interface instantanément !
-      
-      // 1. On incrémente le quota et le ROI visuellement
+      // Optimistic UI : On met à jour l'interface sans recharger
       setUserStats((prevStats) => ({
         ...prevStats,
         used_quota: prevStats.used_quota + 1,
         revenue_recovered: prevStats.revenue_recovered + 500
       }));
 
-      // 2. On retire l'email qui vient d'être traité de la liste
       setOpportunities((prevOpps) => 
         prevOpps.filter((opp: any) => opp.thread_id !== selectedThread.thread_id)
       );
@@ -155,7 +179,6 @@ const handleSendClick = async () => {
       if (error.message === "QUOTA_REACHED") {
         showToast("Redirection vers la page de paiement...", "error");
         
-        // --- 💰 REDIRECTION STRIPE ---
         try {
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
           const stripeRes = await fetch(`${apiUrl}/api/payments/create-checkout-session`, {
@@ -166,7 +189,6 @@ const handleSendClick = async () => {
           
           if (stripeRes.ok) {
             const data = await stripeRes.json();
-            // On redirige brutalement (mais élégamment) l'utilisateur vers Stripe !
             window.location.href = data.checkout_url; 
           }
         } catch (stripeErr) {
@@ -222,11 +244,7 @@ const handleSendClick = async () => {
       </header>
 
       <main className="p-8 max-w-6xl mx-auto">
-        
-        {/* --- NOUVEAU : WIDGETS BUSINESS (QUOTA ET ROI) --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          
-          {/* Widget Quota */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-bold text-slate-700">Relances ce mois-ci</h3>
@@ -246,17 +264,14 @@ const handleSendClick = async () => {
             )}
           </div>
 
-          {/* Widget ROI (Retour sur Investissement) */}
           <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 rounded-2xl border border-emerald-600 shadow-md text-white flex flex-col justify-center relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-20 text-6xl">💸</div>
             <h3 className="font-medium text-emerald-100 mb-1 z-10">Revenus potentiels récupérés</h3>
             <p className="text-4xl font-extrabold z-10">{userStats.revenue_recovered.toLocaleString('fr-FR')} €</p>
             <p className="text-xs text-emerald-100 mt-2 z-10">*Basé sur une valeur moyenne de 500€ par relance sauvée</p>
           </div>
-          
         </div>
 
-        {/* --- EN-TÊTE AVEC RECHERCHE --- */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Tes opportunités de relance</h1>
@@ -297,31 +312,33 @@ const handleSendClick = async () => {
             </div>
           )}
 
-          {filteredOpportunities.map((opp: any) => (
+          {filteredOpportunities.map((opp: any) => {
+            const cat = opp.category || opp.intent_category;
+            return (
             <div key={opp.thread_id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all duration-200 group">
               <div className="flex justify-between items-start">
                 <div className="space-y-3 flex-1 pr-6">
                   
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${getIntentStyle(opp.intent_category)}`}>
-                      {opp.intent_category === "OUBLI" && "🔥 Oubli probable"}
-                      {opp.intent_category === "ATTENTE" && "⏳ En attente"}
-                      {opp.intent_category === "OBJECTION" && "⚠️ Objection"}
+                    <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border ${getIntentStyle(cat)}`}>
+                      {cat === "OUBLI" && "🔥 Oubli probable"}
+                      {cat === "ATTENTE" && "⏳ En attente"}
+                      {cat === "OBJECTION" && "⚠️ Objection"}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
                       <Clock className="w-3.5 h-3.5" />
-                      {opp.days_waiting} jours
+                      {opp.days_waiting || "?"} jours
                     </span>
                   </div>
 
                   <div>
                     <h3 className="font-semibold text-slate-900 line-clamp-1 text-lg">{opp.subject}</h3>
-                    <p className="text-sm text-slate-500 mt-0.5">{opp.recipient}</p>
+                    <p className="text-sm text-slate-500 mt-0.5">{opp.recipient || opp.user_email}</p>
                   </div>
 
                   <div className="flex items-start gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100 mt-2">
                     <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                    <p className="text-sm text-slate-600 italic">"{opp.intent_reason}"</p>
+                    <p className="text-sm text-slate-600 italic">"{opp.intent_reason || opp.analysis_summary}"</p>
                   </div>
 
                 </div>
@@ -330,7 +347,7 @@ const handleSendClick = async () => {
                   <button 
                     onClick={() => handleGenerateClick(opp)}
                     className={`flex items-center gap-2 text-white px-6 py-2.5 rounded-xl transition-all font-medium shadow-sm hover:shadow opacity-90 group-hover:opacity-100 ${
-                      opp.intent_category === "ATTENTE" ? "bg-slate-800 hover:bg-slate-900" : "bg-blue-600 hover:bg-blue-700"
+                      cat === "ATTENTE" ? "bg-slate-800 hover:bg-slate-900" : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   >
                     <MessageSquare className="w-4 h-4" />
@@ -339,11 +356,11 @@ const handleSendClick = async () => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </main>
 
-      {/* --- MODALE ET TOAST --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-40">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-slate-100">
@@ -392,7 +409,7 @@ const handleSendClick = async () => {
 
       {toast && (
         <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-bottom-5 border border-slate-700">
-          {toast.type === 'success' ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}
+          {toast.type === 'success' ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : toast.type === 'info' ? <Info className="w-5 h-5 text-blue-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}
           <span className="font-medium">{toast.message}</span>
         </div>
       )}

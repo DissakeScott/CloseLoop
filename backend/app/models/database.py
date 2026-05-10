@@ -1,10 +1,11 @@
 # backend/app/models/database.py
 import os
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, ForeignKey, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 import datetime
-
+import uuid
+from sqlalchemy.dialects.postgresql import UUID
 load_dotenv()
 
 # Connexion à la base de données Supabase
@@ -40,6 +41,19 @@ class User(Base):
     used_quota = Column(Integer, default=0) # Remis à 0 chaque mois plus tard
     revenue_recovered = Column(Float, default=0.0)
     stripe_customer_id = Column(String, nullable=True)
+
+class Opportunity(Base):
+    __tablename__ = "opportunities"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_email = Column(String, ForeignKey("users.email"))
+    thread_id = Column(String)
+    subject = Column(String)
+    last_message_preview = Column(String)
+    category = Column(String)
+    analysis_summary = Column(String)
+    last_received_date = Column(DateTime(timezone=True))
+    is_processed = Column(Boolean, default=False)
 
 # Fonction pour créer les tables automatiquement
 def init_db():
