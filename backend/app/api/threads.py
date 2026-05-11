@@ -4,6 +4,8 @@ from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 from sqlalchemy.orm import Session
 # NOUVEAU : Import de Opportunity
 from app.models.database import get_db, User, Opportunity 
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 
 from app.services.ai_service import generate_followup_draft
 from app.services.gmail_service import (
@@ -52,15 +54,39 @@ def sync_opportunities_to_db(email: str, access_token: str, refresh_token: str, 
     
     # 3. On enregistre les nouvelles pépites trouvées par l'IA
     for opp in new_opportunities:
+        # 💡 AJOUTE CE PRINT POUR VOIR DANS TON TERMINAL CE QUI MANQUE
+      #  print(f"🧐 DEBUG OPPORTUNITÉ : {opp}") 
+        
+        # 💡 On essaie plusieurs noms de variables classiques au cas où l'IA a changé le nom
+        date_str = opp.get('date') or opp.get('last_message_date') or opp.get('internalDate')
+        # --- CALCUL AUTOMATIQUE DU NOMBRE DE JOURS ---
+        days_val = 0
+        if date_str:
+            try:
+                # Essai 1 : Format standard ISO (ex: 2026-05-12T10:00:00Z)
+                last_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                delta = datetime.now(last_date.tzinfo) - last_date
+                days_val = max(0, delta.days) # max(0) évite d'afficher -1 jour
+            except ValueError:
+                try:
+                    # Essai 2 : Format classique des headers d'e-mail (ex: Tue, 12 May 2026 ...)
+                    last_date = parsedate_to_datetime(date_str)
+                    delta = datetime.now(last_date.tzinfo) - last_date
+                    days_val = max(0, delta.days)
+                except Exception:
+                    # Si aucun format ne marche, on met 0 par défaut
+                    days_val = 0
+        # -----------------------------------------------
+
         db_opp = Opportunity(
             user_email=email,
-            # Utilisation de .get() avec les vrais noms de tes variables Gmail/IA !
             thread_id=opp.get('thread_id') or opp.get('id', 'inconnu'),
             subject=opp.get('subject', 'Sans objet'),
             last_message_preview=opp.get('snippet') or opp.get('preview', ''),
             category=opp.get('intent_category') or opp.get('category', 'ATTENTE'),
             analysis_summary=opp.get('intent_reason') or opp.get('summary', ''),
-            last_received_date=opp.get('date') 
+            last_received_date=date_str,
+            days_waiting=days_val  # 💡 Ajout du nombre de jours calculé ici !
         )
         db.add(db_opp)
     
@@ -126,7 +152,7 @@ def send_followup_reply(thread_id: str, payload: SendReplyPayload, db: Session =
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
         
-    if user.plan == "free" and user.used_quota >= 3:
+    if user.plan == "free" and user.used_quota >= 5:
         raise HTTPException(status_code=402, detail="QUOTA_REACHED")
         
     try:

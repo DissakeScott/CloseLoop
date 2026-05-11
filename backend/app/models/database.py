@@ -54,6 +54,7 @@ class Opportunity(Base):
     analysis_summary = Column(String)
     last_received_date = Column(DateTime(timezone=True))
     is_processed = Column(Boolean, default=False)
+    days_waiting = Column(Integer, nullable=True, default=0)
 
 # Fonction pour créer les tables automatiquement
 def init_db():

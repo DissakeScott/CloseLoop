@@ -46,7 +46,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(threads.router, prefix="/threads", tags=["Gmail Threads"])
 app.include_router(cron_router, prefix="/api/admin", tags=["Admin/Cron"])
-app.include_router(payments_router, prefix="/api/payments", tags=["Payments/Stripe"])
+app.include_router(payments_router, prefix="/payments", tags=["Payments"])
 
 @app.get("/")
 def read_root():

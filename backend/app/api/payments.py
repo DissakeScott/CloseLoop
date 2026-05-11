@@ -72,28 +72,49 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None),
     except stripe.error.SignatureVerificationError as e:
         raise HTTPException(status_code=400, detail="Signature invalide")
 
-   # 3. Si le paiement est un succès !
+    # 3. Si le paiement est un succès !
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         
-        # --- CORRECTION ICI ---
-        # On utilise getattr() car session est un StripeObject et n'a pas de méthode .get()
-        customer_email = getattr(session, 'customer_email', None)
+        # Extraction propre de l'email (Stripe stocke souvent ça dans customer_details)
+        customer_details = session.get('customer_details', {})
+        customer_email = customer_details.get('email') or session.get('customer_email')
         
-        # Sécurité supplémentaire : si l'utilisateur a tapé son email manuellement, 
-        # Stripe le range parfois dans 'customer_details'
-        customer_details = getattr(session, 'customer_details', None)
-        if not customer_email and customer_details:
-            customer_email = getattr(customer_details, 'email', None)
-        # ----------------------
+        # 💡 L'ÉLÉMENT CRUCIAL : On récupère l'identifiant "cus_..." du client
+        stripe_customer_id = session.get('customer') 
         
-        if customer_email:
+        if customer_email and stripe_customer_id:
             # On cherche l'utilisateur dans notre base de données
             user = db.query(User).filter(User.email == customer_email).first()
+            
             if user:
-                # MAGIE : On le passe en plan PRO !
+                # MAGIE 1 : On le passe en plan PRO !
                 user.plan = "pro"
+                
+                # MAGIE 2 : On sauvegarde l'identifiant Stripe pour activer le portail client !
+                user.stripe_customer_id = stripe_customer_id
+                
                 db.commit()
                 print(f"💰 Succès ! Le compte {customer_email} est passé PRO.")
+                print(f"🔗 Identifiant Stripe sauvegardé : {stripe_customer_id}")
 
+    # On répond toujours 200 à Stripe pour lui dire qu'on a bien reçu le message
     return {"status": "success"}
+
+
+@router.post("/customer-portal")
+def create_customer_portal(email: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user or not user.stripe_customer_id:
+        raise HTTPException(status_code=404, detail="Client Stripe non trouvé. Vous devez d'abord souscrire à un plan.")
+
+    try:
+        # On crée une session pour le portail d'auto-gestion
+        session = stripe.billing_portal.Session.create(
+            customer=user.stripe_customer_id,
+            return_url=f"{FRONTEND_URL}/dashboard/settings",
+        )
+        return {"url": session.url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

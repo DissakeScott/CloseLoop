@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Mail, Bot, TrendingUp, CheckCircle, Shield } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 export default function LandingPage() {
   const handleLogin = () => {
@@ -10,7 +10,7 @@ export default function LandingPage() {
   };
 
   // --- VARIABLES D'ANIMATION ---
-  const staggerContainer = {
+  const staggerContainer: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -18,9 +18,13 @@ export default function LandingPage() {
     }
   };
 
-  const fadeUp = {
+  const fadeUp: Variants = {
     hidden: { opacity: 0, y: 30 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 70, damping: 15 } }
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring" as const, stiffness: 70, damping: 15 }
+    }
   };
 
   return (

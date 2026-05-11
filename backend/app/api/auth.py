@@ -114,6 +114,7 @@ def auth_callback(state: str, code: str, db: Session = Depends(get_db)):
         return RedirectResponse(url=frontend_url)
     
     except Exception as e:
+        print(f"🚨 ERREUR GOOGLE OAUTH: {str(e)}") 
         raise HTTPException(status_code=400, detail=f"Erreur d'authentification : {str(e)}")
     
 @router.get("/user_tokens")
@@ -125,4 +126,19 @@ def get_user_tokens(email: str, db: Session = Depends(get_db)):
     return {
         "access_token": user.access_token,
         "refresh_token": user.refresh_token
+    }
+
+@router.get("/me")
+def get_current_user_info(email: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+        
+    return {
+        "full_name": user.full_name,
+        "email": user.email,
+        "plan": user.plan,
+        "used_quota": user.used_quota,
+        "subscription_end": user.subscription_end, # Assure-toi que ce champ existe en BD
+        "is_active": True # Logique à lier avec Stripe
     }
