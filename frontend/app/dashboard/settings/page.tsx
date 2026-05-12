@@ -14,7 +14,6 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    // 💡 RÉCUPÉRATION DYNAMIQUE DES DONNÉES
     const loadUserProfile = async () => {
       const email = localStorage.getItem('user_email');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -25,17 +24,14 @@ export default function SettingsPage() {
       }
 
       try {
-        // On appelle ta route de stats ou une route /me si tu l'as créée
-        // Ici on utilise /threads/stats/ car on sait qu'elle existe déjà dans ton code
         const res = await fetch(`${apiUrl}/threads/stats/${encodeURIComponent(email)}`);
         
         if (res.ok) {
           const data = await res.json();
           setUser({
-            full_name: email.split('@')[0], // Extraction temporaire du nom depuis l'email
+            full_name: email.split('@')[0], 
             email: email,
             plan: data.plan,
-            // On simule la date de fin si elle n'est pas encore en BD
             subscription_end: data.subscription_end || "2026-12-31" 
           });
         }
@@ -48,6 +44,39 @@ export default function SettingsPage() {
 
     loadUserProfile();
   }, []);
+
+  // 💡 NOUVELLE FONCTION POUR LE PAIEMENT !
+  const handleUpgrade = async () => {
+    const email = localStorage.getItem('user_email');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+    if (!email) return;
+
+    showToast("Création de votre lien de paiement...", "info");
+
+    try {
+      const res = await fetch(`${apiUrl}/payments/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email }), 
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url; // Redirection vers Stripe
+        } else {
+          showToast("Lien de paiement introuvable.", "error");
+        }
+      } else {
+        showToast("Erreur lors de la préparation du paiement.", "error");
+      }
+    } catch (error) {
+      showToast("Erreur de connexion au serveur.", "error");
+    }
+  };
 
   const handleManageBilling = async () => {
     const email = localStorage.getItem('user_email');
@@ -64,11 +93,10 @@ export default function SettingsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        // Redirection vers le portail Stripe
         window.location.href = data.url;
       } else {
         const errorData = await res.json();
-        if (errorData.detail.includes("Client Stripe non trouvé")) {
+        if (errorData.detail?.includes("Client Stripe non trouvé")) {
             showToast("Aucun abonnement actif trouvé.", "error");
         } else {
             showToast("Erreur lors de l'accès au portail.", "error");
@@ -95,7 +123,6 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-slate-900 mb-8 tracking-tight">Paramètres du compte</h1>
 
         <div className="grid gap-6">
-          {/* Section Profil dynamique */}
           <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-center gap-4 mb-8">
               <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shadow-inner">
@@ -119,7 +146,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Section Abonnement dynamique */}
           <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
             <div className="flex items-center gap-4 mb-8">
               <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-600 shadow-inner">
@@ -145,10 +171,14 @@ export default function SettingsPage() {
                 </div>
               </div>
               
+              {/* 💡 CORRECTION DU BOUTON ICI ! */}
               {user?.plan === "free" && (
-                <Link href="/dashboard" className="text-sm font-bold text-blue-600 hover:text-blue-700 underline underline-offset-4">
+                <button 
+                  onClick={handleUpgrade}
+                  className="text-sm font-bold text-blue-600 hover:text-blue-700 underline underline-offset-4 bg-transparent border-none cursor-pointer"
+                >
                   Passer au plan Pro →
-                </Link>
+                </button>
               )}
             </div>
 
@@ -163,7 +193,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* TOASTS */}
       {toast && (
         <div className="fixed bottom-8 right-8 z-50 flex items-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-bottom-5 border border-slate-700">
           {toast.type === 'success' ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : toast.type === 'info' ? <Info className="w-5 h-5 text-blue-400" /> : <AlertCircle className="w-5 h-5 text-red-400" />}
