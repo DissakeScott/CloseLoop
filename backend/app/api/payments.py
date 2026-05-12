@@ -66,18 +66,28 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None),
         print("❌ Erreur Webhook : Signature invalide (Vérifie ton STRIPE_WEBHOOK_SECRET)")
         raise HTTPException(status_code=400, detail="Signature invalide")
 
-    if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
+    # Dans les versions récentes du SDK Stripe, on utilise la notation pointée (event.type)
+    if event.type == 'checkout.session.completed':
+        session = event.data.object
         
-        # 💡 On utilise d'abord l'email caché dans nos métadonnées (100% sûr)
-        customer_email = session.get('metadata', {}).get('original_user_email')
+        customer_email = None
         
-        # S'il n'y a pas de metadata (par ex pour un vieux lien généré), on fallback
-        if not customer_email:
-            customer_details = session.get('customer_details', {})
-            customer_email = customer_details.get('email') or session.get('customer_email')
+        # 1. On cherche d'abord dans nos metadata avec 'getattr' au lieu de '.get()'
+        metadata = getattr(session, 'metadata', None)
+        if metadata:
+            customer_email = getattr(metadata, 'original_user_email', None)
             
-        stripe_customer_id = session.get('customer') 
+        # 2. Si pas trouvé, on cherche dans les détails du client
+        if not customer_email:
+            customer_details = getattr(session, 'customer_details', None)
+            if customer_details:
+                customer_email = getattr(customer_details, 'email', None)
+                
+        # 3. Dernier recours
+        if not customer_email:
+            customer_email = getattr(session, 'customer_email', None)
+            
+        stripe_customer_id = getattr(session, 'customer', None)
         
         print(f"🧐 Webhook Reçu ! Email: {customer_email} | Stripe ID: {stripe_customer_id}")
         
