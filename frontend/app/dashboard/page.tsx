@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 // 💡 IMPORT DES NOUVELLES FONCTIONS SÉPARÉES (Lecture rapide vs Synchro lente)
 import { fetchOpportunities, syncOpportunities, generateDraft, sendReply } from "@/lib/api";
 import Link from "next/link";
-import { Settings, RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut, Info, Search } from "lucide-react";
+import { Settings, RefreshCw, MessageSquare, Clock, X, Send, Loader2, CheckCircle, AlertCircle, LogOut, Info, Search, MoreVertical } from "lucide-react";
+
 export default function Dashboard() {
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -17,6 +18,9 @@ export default function Dashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  
+  // 💡 NOUVEL ÉTAT POUR LE MENU DÉROULANT
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -53,11 +57,9 @@ export default function Dashboard() {
   }, []);
 
   // --- ⚡ LECTURE INSTANTANÉE (0.1 seconde) ---
-  // 💡 Cette fonction ne fait plus appel à Gemini. Elle lit juste Supabase.
   const loadData = async (email: string) => {
     setLoading(true);
     try {
-      // 1. On utilise ta fonction GET rapide de api.ts
       const result = await fetchOpportunities(email);
       
       const sortedOpportunities = result.data.sort((a: any, b: any) => {
@@ -71,7 +73,6 @@ export default function Dashboard() {
       
       setOpportunities(sortedOpportunities);
 
-      // 2. Récupération des statistiques
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const statsRes = await fetch(`${apiUrl}/threads/stats/${encodeURIComponent(email)}`);
       if (statsRes.ok) {
@@ -91,7 +92,6 @@ export default function Dashboard() {
   };
 
   // --- 🤖 SYNCHRONISATION PROFONDE AVEC L'IA (40 secondes) ---
-  // 💡 Cette fonction n'est déclenchée QUE si l'utilisateur clique sur "Actualiser"
   const handleManualRefresh = async () => {
     const acc = localStorage.getItem('access_token');
     const ref = localStorage.getItem('refresh_token');
@@ -99,14 +99,10 @@ export default function Dashboard() {
     if (!userEmail || !acc) return;
 
     setLoading(true);
-    // 💡 On prévient l'utilisateur que ça va être long (car on réveille Gemini)
     showToast("L'IA analyse vos e-mails... (environ 40 secondes) 🤖", "info");
 
     try {
-      // 1. Appel de ta fonction POST (qui lance le vrai travail d'IA sur le Backend)
       await syncOpportunities(userEmail, acc, ref || "");
-
-      // 2. Dès que l'IA a fini de remplir Supabase, on relit la base instantanément !
       await loadData(userEmail);
       
       showToast("Synchronisation terminée ! Vos opportunités sont à jour. ✨", "success");
@@ -159,14 +155,12 @@ export default function Dashboard() {
       setIsModalOpen(false);
       showToast("🚀 Relance envoyée !"); 
       
-      // 💡 OPTIMISTIC UI : On met à jour les stats à l'écran sans recharger la page
       setUserStats((prevStats) => ({
         ...prevStats,
         used_quota: prevStats.used_quota + 1,
         revenue_recovered: prevStats.revenue_recovered + 500
       }));
 
-      // 💡 On fait disparaître l'email traité de la liste
       setOpportunities((prevOpps) => 
         prevOpps.filter((opp: any) => opp.thread_id !== selectedThread.thread_id)
       );
@@ -218,28 +212,55 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="CloseLoop" className="w-10 h-10 object-contain drop-shadow-sm" />
             <span className="font-extrabold text-xl text-slate-900 tracking-tight">Close<span style={{ color: "#4d99d3" }}>Loop</span></span>
           </div>
-              <Link 
-            href="/dashboard/settings" 
-            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all group"
-            title="Paramètres"
-          >
-            <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-300" />
-          </Link>
-          <div className="flex items-center gap-4">
+          
+          <div className="flex items-center gap-4 relative">
             <div className="flex items-center gap-3 bg-slate-50 py-1.5 px-2 pr-4 rounded-full border border-slate-200">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold shadow-sm">
                 {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
               </div>
               <span className="text-sm font-medium text-slate-700 hidden sm:block">{userEmail || "Chargement..."}</span>
             </div>
-            <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-              <LogOut className="w-5 h-5" />
+
+            {/* 💡 BOUTON DU MENU DÉROULANT */}
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="p-2.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors"
+              aria-label="Menu utilisateur"
+            >
+              <MoreVertical className="w-5 h-5" />
             </button>
+
+            {/* 💡 LE MENU DÉROULANT */}
+            {menuOpen && (
+              <div className="absolute right-0 top-12 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 animate-in fade-in slide-in-from-top-2">
+                <Link 
+                  href="/dashboard/settings"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-slate-700 rounded-xl hover:bg-slate-100 transition-colors text-sm font-semibold"
+                >
+                  <Settings className="w-4 h-4 text-slate-500" />
+                  Paramètres
+                </Link>
+                <div className="h-px bg-slate-100 my-2" />
+                <button 
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-red-600 rounded-xl hover:bg-red-50 transition-colors text-sm font-semibold"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Se déconnecter
+                </button>
+              </div>
+            )}
           </div>
+
         </div>
       </header>
 
@@ -339,7 +360,6 @@ export default function Dashboard() {
                     </span>
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
                         <Clock className="w-3.5 h-3.5" />
-                        {/* 💡 Utilisation de ?? pour n'afficher "?" que si la valeur est null ou undefined */}
                         {opp.days_waiting ?? "?"} jours
                   </span>
                   </div>
