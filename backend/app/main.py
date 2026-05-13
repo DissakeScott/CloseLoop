@@ -32,8 +32,9 @@ app = FastAPI(title="MailtiVoo API")
 
 origins = [
     "http://localhost:3000",
-    "https://close-loop-liard.vercel.app",
-]
+    "https://mailtivoo.com",
+    "https://www.mailtivoo.com",
+    ]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
