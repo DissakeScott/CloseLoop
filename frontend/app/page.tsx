@@ -283,7 +283,7 @@ export default function LandingPage() {
         </div>
         
         <p className="text-sm mb-4">© {new Date().getFullYear()} MailtiVoo. Conçu pour maximiser votre potentiel.</p>
-        <div className="flex justify-center gap-6 mb-4">
+        <div className="flex justify-center gap-6 -mb-8">
           <Link href="/privacy" className="hover:text-blue-600 transition-colors">Politique de Confidentialité</Link>
           <Link href="/terms" className="hover:text-blue-600 transition-colors">Conditions d'utilisation</Link>
         </div>

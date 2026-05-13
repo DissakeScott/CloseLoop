@@ -53,3 +53,6 @@ app.include_router(payments_router, prefix="/payments", tags=["Payments"])
 def read_root():
     return {"message": "API Smart Follow-up opérationnelle 🚀"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "awake", "message": "MailtiVoo backend is running!"}
