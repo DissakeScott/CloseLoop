@@ -28,7 +28,7 @@ else:
     print("❌ ATTENTION: Sentry DSN introuvable dans le .env !")
 
 
-app = FastAPI(title="CloseLoop API")
+app = FastAPI(title="MailtiVoo API")
 
 origins = [
     "http://localhost:3000",

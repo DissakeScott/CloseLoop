@@ -40,13 +40,20 @@ export default function LandingPage() {
         transition={{ type: "spring", stiffness: 100, damping: 20 }}
         className="fixed w-full bg-white/70 backdrop-blur-md border-b border-slate-200/50 z-50"
       >
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="CloseLoop Logo" className="w-8 h-8 object-contain hover:scale-110 transition-transform" />
-            <span className="font-extrabold text-xl text-slate-900 tracking-tight">
-              Close<span className="text-blue-500">Loop</span>
-            </span>
-          </div>
+      <div className="max-w-6xl mx-auto px-6 h-28 flex items-center justify-between"> {/* h-16 -> h-28 pour accueillir le grand logo */}
+  <div className="relative group transition-transform hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-3">
+    <img 
+      src="/Logo.png" 
+      alt="MailtiVoo Logo" 
+      className="w-50 h-54 -mt-10 -mb-10 object-contain drop-shadow-xl transition-all"
+    />
+    
+    {/* Effet de halo accentué pour accompagner la nouvelle taille */}
+    <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20 rounded-full -z-10 scale-150"></div>
+    
+    {/* Optionnel : un petit reflet brillant au survol pour le côté Premium */}
+    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+  </div>
           <button 
             onClick={handleLogin}
             className="text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors"
@@ -79,7 +86,7 @@ export default function LandingPage() {
         </motion.h1>
         
         <motion.p variants={fadeUp} className="text-xl text-slate-500 mb-10 max-w-2xl mx-auto leading-relaxed">
-          CloseLoop se connecte à votre Gmail, détecte les prospects qui vous ignorent, et rédige des relances ultra-personnalisées avec votre propre style. 
+          MailtiVoo se connecte à votre Gmail, détecte les prospects qui vous ignorent, et rédige des relances ultra-personnalisées avec votre propre style. 
         </motion.p>
         
         <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -148,7 +155,7 @@ export default function LandingPage() {
             className="text-center mb-20"
           >
             <h2 className="text-3xl md:text-5xl font-bold text-slate-900 mb-6 tracking-tight">L'automatisation au service de la vente</h2>
-            <p className="text-slate-500 max-w-2xl mx-auto text-lg">Ne laissez plus la charge mentale dicter votre chiffre d'affaires. CloseLoop s'occupe de la partie la plus ingrate de la prospection.</p>
+            <p className="text-slate-500 max-w-2xl mx-auto text-lg">Ne laissez plus la charge mentale dicter votre chiffre d'affaires. MailtiVoo s'occupe de la partie la plus ingrate de la prospection.</p>
           </motion.div>
 
           <motion.div 
@@ -270,11 +277,10 @@ export default function LandingPage() {
 
       {/* --- FOOTER --- */}
       <footer className="bg-white border-t border-slate-200 py-12 text-center text-slate-500">
-        <div className="flex items-center justify-center gap-2 mb-4 hover:opacity-80 transition-opacity cursor-pointer">
-          <img src="/logo.png" alt="CloseLoop Logo" className="w-6 h-6 grayscale opacity-50" />
-          <span className="font-bold text-slate-400">CloseLoop</span>
+        <div className="flex items-center justify-center gap-2 -mb-4 -mt-10 hover:opacity-80 transition-opacity cursor-pointer">
+          <img src="/Logo.png" alt="MailtiVoo Logo" className="w-44 h-20 opacity-80 grayscale" />
         </div>
-        <p className="text-sm">© {new Date().getFullYear()} CloseLoop. Conçu pour maximiser votre potentiel.</p>
+        <p className="text-sm -mb-5">© {new Date().getFullYear()} MailtiVoo. Conçu pour maximiser votre potentiel.</p>
       </footer>
     </div>
   );

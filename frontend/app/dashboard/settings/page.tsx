@@ -130,7 +130,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Profil</h2>
-                <p className="text-sm text-slate-500">Vos identifiants de connexion CloseLoop.</p>
+                <p className="text-sm text-slate-500">Vos identifiants de connexion MailtiVoo.</p>
               </div>
             </div>
             

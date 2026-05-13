@@ -215,12 +215,12 @@ def send_summary_email(service, user_email: str, opp_count: int):
     
     # 1. Le sujet de l'email
     message['Subject'] = f"🔔 {opp_count} opportunité(s) de relance en attente"
-    message['From'] = f"CloseLoop <{user_email}>" # Ajoute un joli nom d'expéditeur
+    message['From'] = f"MailtiVoo <{user_email}>" # Ajoute un joli nom d'expéditeur
     message['To'] = user_email
     
     # 2. Le texte de secours (obligatoire pour les vieux clients mail ou les montres connectées)
     text_fallback = f"""Bonjour ! 
-CloseLoop a identifié {opp_count} opportunité(s) de relance ce matin.
+MailtiVoo a identifié {opp_count} opportunité(s) de relance ce matin.
 Traitez-les ici : https://close-loop-liard.vercel.app/dashboard
 """
     message.set_content(text_fallback)
@@ -270,7 +270,7 @@ Traitez-les ici : https://close-loop-liard.vercel.app/dashboard
                         <tr>
                             <td align="center" style="background-color: #f8fafc; padding: 20px; border-top: 1px solid #f1f5f9;">
                                 <p style="margin: 0; color: #94a3b8; font-size: 12px;">
-                                    Généré automatiquement par l'intelligence artificielle de CloseLoop.<br>
+                                    Généré automatiquement par l'intelligence artificielle de MailtiVoo.<br>
                                     Tu reçois cet email car le scan automatique est activé.
                                 </p>
                             </td>

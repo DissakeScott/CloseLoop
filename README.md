@@ -1,8 +1,8 @@
-# 🔄 CloseLoop
+# 🔄 MailtiVoo
 
 > **Seamless Connection. Enduring Value.**
 > 
-> CloseLoop est un MVP (Minimum Viable Product) de type SaaS conçu pour automatiser et optimiser les relances d'e-mails professionnels. En analysant votre boîte d'envoi Gmail, l'application détecte les e-mails restés sans réponse et génère des brouillons de relance sur mesure grâce à l'Intelligence Artificielle.
+> MailtiVoo est un MVP (Minimum Viable Product) de type SaaS conçu pour automatiser et optimiser les relances d'e-mails professionnels. En analysant votre boîte d'envoi Gmail, l'application détecte les e-mails restés sans réponse et génère des brouillons de relance sur mesure grâce à l'Intelligence Artificielle.
 
 <div align="center">
   

@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CloseLoop",
+  title: "MailtiVoo",
   description: "Seamless Connection. Enduring Value.",
   icons: {
-    icon: "/logo.png", // Cela dit au navigateur d'utiliser ton logo comme icône d'onglet
+    icon: "/Logo.png", // Cela dit au navigateur d'utiliser ton logo comme icône d'onglet
   },
 };
 

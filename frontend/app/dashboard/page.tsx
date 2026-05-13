@@ -214,8 +214,11 @@ export default function Dashboard() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="CloseLoop" className="w-10 h-10 object-contain drop-shadow-sm" />
-            <span className="font-extrabold text-xl text-slate-900 tracking-tight">Close<span style={{ color: "#4d99d3" }}>Loop</span></span>
+        <img 
+            src="/Logo.png" 
+            alt="MailtiVoo Logo" 
+            className="w-50 h-54 -mt-10 -mb-10 object-contain drop-shadow-xl transition-all"
+          />          
           </div>
           
           <div className="flex items-center gap-4 relative">
@@ -324,7 +327,7 @@ export default function Dashboard() {
             <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <Search className="w-10 h-10 text-blue-400" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Bienvenue sur CloseLoop !</h3>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Bienvenue sur MailtiVoo !</h3>
             <p className="text-slate-500 max-w-sm mx-auto mb-8">
               Votre base de données est actuellement vide. Lancez une analyse pour détecter vos premières opportunités de relance.
             </p>
