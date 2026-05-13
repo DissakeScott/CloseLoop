@@ -2,6 +2,7 @@
 
 import { ArrowRight, Mail, Bot, TrendingUp, CheckCircle, Shield } from "lucide-react";
 import { motion, type Variants } from "framer-motion";
+import Link from "next/link";
 
 export default function LandingPage() {
   const handleLogin = () => {
@@ -280,7 +281,12 @@ export default function LandingPage() {
         <div className="flex items-center justify-center gap-2 -mb-4 -mt-10 hover:opacity-80 transition-opacity cursor-pointer">
           <img src="/Logo.png" alt="MailtiVoo Logo" className="w-44 h-20 opacity-80 grayscale" />
         </div>
-        <p className="text-sm -mb-5">© {new Date().getFullYear()} MailtiVoo. Conçu pour maximiser votre potentiel.</p>
+        
+        <p className="text-sm mb-4">© {new Date().getFullYear()} MailtiVoo. Conçu pour maximiser votre potentiel.</p>
+        <div className="flex justify-center gap-6 mb-4">
+          <Link href="/privacy" className="hover:text-blue-600 transition-colors">Politique de Confidentialité</Link>
+          <Link href="/terms" className="hover:text-blue-600 transition-colors">Conditions d'utilisation</Link>
+        </div>
       </footer>
     </div>
   );
