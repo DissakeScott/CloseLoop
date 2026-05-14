@@ -9,7 +9,7 @@ router = APIRouter()
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PRICE_ID = "price_1TUweM35PU14lwm6JUEjcSGk"
+STRIPE_PRICE_ID = "price_1TWcKI3sNctvtEF4sQnwk6t8"
 
 # FRONTEND_URL pour rediriger proprement
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
