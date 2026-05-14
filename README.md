@@ -22,8 +22,6 @@
 
 # 🚀 MailtiVoo - AI-Powered Email Follow-Up SaaS
 
-![MailtiVoo Banner](https://via.placeholder.com/1200x400?text=MailtiVoo+-+Never+Miss+a+Follow-Up)
-
 
 ## ✨ Key Features
 
