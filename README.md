@@ -2,7 +2,7 @@
 
 > **Seamless Connection. Enduring Value.**
 > 
-> MailtiVoo est un MVP (Minimum Viable Product) de type SaaS conçu pour automatiser et optimiser les relances d'e-mails professionnels. En analysant votre boîte d'envoi Gmail, l'application détecte les e-mails restés sans réponse et génère des brouillons de relance sur mesure grâce à l'Intelligence Artificielle.
+> MailtiVoo is a fully functional SaaS application designed to help professionals manage their email follow-ups effortlessly. By leveraging the Gmail API and Generative AI, MailtiVoo scans your inbox for unanswered emails and automatically generates highly contextual draft responses.
 
 <div align="center">
   
@@ -24,7 +24,6 @@
 
 ![MailtiVoo Banner](https://via.placeholder.com/1200x400?text=MailtiVoo+-+Never+Miss+a+Follow-Up)
 
-MailtiVoo is a fully functional SaaS application designed to help professionals manage their email follow-ups effortlessly. By leveraging the Gmail API and Generative AI, MailtiVoo scans your inbox for unanswered emails and automatically generates highly contextual draft responses.
 
 ## ✨ Key Features
 
