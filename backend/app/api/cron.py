@@ -1,8 +1,8 @@
 import os
 from fastapi import APIRouter, HTTPException, Depends, Header, BackgroundTasks
 from sqlalchemy.orm import Session
-# IMPORT IMPORTANT : Ajoute SessionLocal pour que la tâche de fond ait sa propre connexion DB
-from app.models.database import User, get_db, SessionLocal
+# IMPORT IMPORTANT : On ajoute Opportunity à la liste des imports
+from app.models.database import User, Opportunity, get_db, SessionLocal
 from app.core.security import decrypt_token
 from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 from app.services.gmail_service import build_gmail_service, get_followup_opportunities, send_summary_email
@@ -41,12 +41,39 @@ def process_all_users_background():
                 if opportunities:
                     print(f"🔔 {len(opportunities)} opportunités trouvées pour {user.email}")
                     total_opportunities += len(opportunities)
+                    
+                    # 👇 NOUVELLE PARTIE : Sauvegarde en Base de Données 👇
+                    for opp in opportunities:
+                        # On vérifie si l'opportunité existe déjà (basé sur le thread_id et l'email de l'utilisateur)
+                        existing_opp = db.query(Opportunity).filter(
+                            Opportunity.thread_id == opp.get("id"),
+                            Opportunity.user_email == user.email
+                        ).first()
+                        
+                        # Si elle n'existe pas, on l'ajoute
+                        if not existing_opp:
+                            new_opp = Opportunity(
+                                user_email=user.email,
+                                thread_id=opp.get("id"),
+                                subject=opp.get("subject", "Sans objet"),
+                                last_message_preview=opp.get("snippet", ""),
+                                is_processed=False
+                            )
+                            db.add(new_opp)
+                            
+                    # On sauvegarde les changements pour cet utilisateur dans la base de données
+                    db.commit()
+                    # 👆 ------------------------------------------------ 👆
+
+                    # On envoie l'email récapitulatif
                     send_summary_email(service, user.email, len(opportunities))
             
             except Exception as e:
+                # En cas de problème avec cet utilisateur, on annule ses changements DB pour éviter de corrompre la base
+                db.rollback() 
                 print(f"Erreur lors du scan pour {user.email}: {e}")
                 
-        print(f"✅ Scan global terminé. {total_opportunities} opportunités trouvées.")
+        print(f"✅ Scan global terminé. {total_opportunities} opportunités traitées.")
         
     finally:
         # 2. Très important : fermer la session DB à la fin du processus
