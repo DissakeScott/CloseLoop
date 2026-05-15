@@ -55,7 +55,7 @@
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/your-username/mailtivoo.git](https://github.com/your-username/mailtivoo.git)
+git clone [https://github.com/DissakeScott/mailtivoo.git](https://github.com/DissakeScott/mailtivoo.git)
 cd mailtivoo### Base de Données
 * **SGBD :** PostgreSQL (hébergé via Supabase)
 * **ORM :** SQLAlchemy
