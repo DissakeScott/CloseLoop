@@ -2,7 +2,7 @@
 
 > **Seamless Connection. Enduring Value.**
 > 
-> MailtiVoo est un MVP (Minimum Viable Product) de type SaaS conçu pour automatiser et optimiser les relances d'e-mails professionnels. En analysant votre boîte d'envoi Gmail, l'application détecte les e-mails restés sans réponse et génère des brouillons de relance sur mesure grâce à l'Intelligence Artificielle.
+> MailtiVoo is a fully functional SaaS application designed to help professionals manage their email follow-ups effortlessly. By leveraging the Gmail API and Generative AI, MailtiVoo scans your inbox for unanswered emails and automatically generates highly contextual draft responses.
 
 <div align="center">
   
@@ -20,41 +20,43 @@
 
 </div>
 
----
-
-## 🎯 Pourquoi ce projet ?
-
-Ce projet a été développé de A à Z pour démontrer des compétences en architecture **Full-Stack**, en intégration d'**API tierces complexes** (Google Workspace), et en implémentation de fonctionnalités d'**Intelligence Artificielle générative** (LLMs). 
+# 🚀 MailtiVoo - AI-Powered Email Follow-Up SaaS
 
 
+## ✨ Key Features
 
----
+* **Smart Inbox Scanning:** Securely integrates with the Gmail API via OAuth2 to detect emails that require a follow-up.
+* **AI-Generated Drafts:** Utilizes Large Language Models (LLMs) to understand context and generate polite, personalized follow-up drafts directly in your Gmail account.
+* **User-Centric Dashboard:** A clean, responsive, and intuitive interface to manage email scans and review generated drafts.
+* **Secure Subscription Model:** Fully integrated with Stripe for secure and seamless payment processing and subscription management.
+* **Automated Workflows:** Background cron jobs to maintain service availability and trigger periodic inbox checks.
 
-## ✨ Fonctionnalités Principales
-
-* **🔐 Authentification Sécurisée :** Connexion via Google OAuth 2.0 (récupération de l'identité et des tokens d'accès sécurisés).
-* **📡 Synchronisation Gmail :** Analyse automatique des fils de discussion (Threads) pour identifier les e-mails envoyés sans réponse depuis plusieurs jours.
-* **🧠 Moteur d'IA (Google Gemini) :** Génération de brouillons de relance contextuels basés sur l'historique des échanges.
-* **🎛️ Personnalisation du Ton :** Ajustement dynamique du comportement de l'IA selon 4 tons : *Naturel*, *Formel*, *Direct*, ou *Très court*.
-* **🛡️ Human-in-the-loop :** Modale de relecture et d'édition manuelle avant l'envoi définitif via l'API Gmail.
-* **🚀 Expérience Utilisateur (UX) :** Interface moderne, responsive, avec gestion des états de chargement (Loaders) et notifications non-bloquantes (Toasts).
-
----
-
-## 🛠️ Stack Technique
+## 🛠️ Tech Stack
 
 ### Frontend
-* **Framework :** Next.js 14 / React
-* **Langage :** TypeScript
-* **Stylisation :** Tailwind CSS
-* **Icônes :** Lucide React
+* **Framework:** Next.js 14 (React)
+* **Styling:** Tailwind CSS
+* **Icons:** Lucide React
+* **Hosting:** Vercel
 
 ### Backend
-* **Framework :** FastAPI (Python)
-* **IA :** API Google Generative AI (Modèles Gemini Flash)
-* **Intégration :** Google API Python Client (Gmail API)
+* **Framework:** FastAPI (Python)
+* **Authentication:** Google OAuth2
+* **Integrations:** Google Cloud Platform (Gmail API `readonly` & `compose`), Stripe API
+* **Hosting:** Render
 
-### Base de Données
+## 🚀 Getting Started (Local Development)
+
+### Prerequisites
+* Node.js & npm
+* Python 3.9+
+* Google Cloud Console account (for OAuth credentials)
+* Stripe Developer account
+
+### 1. Clone the repository
+```bash
+git clone [https://github.com/DissakeScott/mailtivoo.git](https://github.com/DissakeScott/mailtivoo.git)
+cd mailtivoo### Base de Données
 * **SGBD :** PostgreSQL (hébergé via Supabase)
 * **ORM :** SQLAlchemy
 
