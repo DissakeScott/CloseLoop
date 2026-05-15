@@ -17,11 +17,18 @@ export default function PrivacyPolicy() {
           <h2 className="text-xl font-bold text-slate-800 mt-8">1. Introduction</h2>
           <p>Bienvenue sur MailtiVoo. La protection de vos données personnelles est notre priorité. Cette politique explique comment nous collectons, utilisons et protégeons vos informations lorsque vous utilisez notre service d'optimisation de relances e-mail.</p>
 
-          <h2 className="text-xl font-bold text-slate-800 mt-8">2. Utilisation de l'API Gmail (Google Workspace APIs)</h2>
-          <p>L'utilisation par MailtiVoo des informations reçues des API Google respecte la <a href="https://developers.google.com/terms/api-services-user-data-policy" className="text-blue-600 underline">Google API Services User Data Policy</a>, y compris les exigences d'utilisation limitée.</p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li><strong>Ce que nous lisons :</strong> Nous accédons à vos fils d'e-mails uniquement pour identifier les messages sans réponse (opportunités de relance).</li>
-            <li><strong>Ce que nous ne faisons PAS :</strong> Nous ne vendons pas vos données. Nous n'utilisons pas vos e-mails pour diffuser des publicités. L'accès humain à vos e-mails est strictement interdit, sauf en cas d'obligation légale ou avec votre consentement explicite pour résoudre un bug.</li>
+          <h2 className="text-xl font-bold text-slate-800 mt-8">2. Utilisation de l'API Gmail et des données Google</h2>
+          <p>
+            L'utilisation et le transfert par MailtiVoo vers toute autre application des informations reçues des API Google respecteront la <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">politique relative aux données utilisateur des services API Google (Google API Services User Data Policy)</a>, y compris les exigences d'utilisation limitée (Limited Use requirements).
+          </p>
+          <div className="bg-slate-100 p-4 rounded-lg mt-4 border border-slate-200">
+            <p className="text-slate-800">
+              <strong>Protection des données sensibles :</strong> Les jetons d'accès (access tokens) permettant de lire et de générer des brouillons d'e-mails sont chiffrés de manière sécurisée dans notre base de données. Les données de messagerie lues depuis votre boîte de réception sont traitées uniquement de façon éphémère (en mémoire) pour la détection d'opportunités et la génération de brouillons par notre intelligence artificielle. Ces données sensibles ne sont ni stockées à long terme sur nos serveurs, ni vendues, ni partagées avec des tiers à des fins publicitaires.
+            </p>
+          </div>
+          <ul className="list-disc pl-5 space-y-2 mt-4">
+            <li><strong>Ce que nous lisons :</strong> Nous accédons à vos métadonnées d'e-mails uniquement pour identifier les messages sans réponse.</li>
+            <li><strong>Ce que nous ne faisons PAS :</strong> L'accès humain à vos e-mails est strictement interdit, sauf en cas d'obligation légale ou avec votre consentement explicite pour résoudre un bug technique.</li>
           </ul>
 
           <h2 className="text-xl font-bold text-slate-800 mt-8">3. Intelligence Artificielle et Données</h2>
@@ -31,7 +38,7 @@ export default function PrivacyPolicy() {
           <p>Les paiements sont traités de manière sécurisée par notre partenaire Stripe. MailtiVoo ne stocke jamais vos numéros de carte bancaire sur ses propres serveurs.</p>
 
           <h2 className="text-xl font-bold text-slate-800 mt-8">5. Suppression des données</h2>
-          <p>Vous pouvez à tout moment révoquer l'accès de MailtiVoo à votre compte Google depuis les paramètres de sécurité de votre compte Google. Pour supprimer l'intégralité de votre compte MailtiVoo, veuillez nous contacter.</p>
+          <p>Vous pouvez à tout moment révoquer l'accès de MailtiVoo à votre compte Google depuis les paramètres de sécurité de votre compte Google. Pour supprimer l'intégralité de votre compte MailtiVoo et de vos données chiffrées, veuillez nous contacter.</p>
         </div>
       </div>
     </div>
