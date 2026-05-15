@@ -240,7 +240,7 @@ Traitez-les ici : https://close-loop-liard.vercel.app/dashboard
                         
                         <tr>
                             <td align="center" style="padding: 30px 40px; border-bottom: 1px solid #f1f5f9;">
-                                <h1 style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Close<span style="color: #2563eb;">Loop</span></h1>
+                                <h1 style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Mailti<span style="color: #2563eb;">Voo</span></h1>
                             </td>
                         </tr>
                         
