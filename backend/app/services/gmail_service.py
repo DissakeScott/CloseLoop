@@ -239,9 +239,13 @@ Traitez-les ici : https://close-loop-liard.vercel.app/dashboard
                     <table width="100%" max-width="600px" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 600px;">
                         
                         <tr>
-                            <td align="center" style="padding: 30px 40px; border-bottom: 1px solid #f1f5f9;">
-                                <h1 style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Mailti<span style="color: #2563eb;">Voo</span></h1>
-                            </td>
+                            <div className="flex items-center gap-3">
+                            <img 
+                                src="/Logo.png" 
+                                alt="MailtiVoo Logo" 
+                                style="width: 80px; height: 80px; margin-top: -40px; margin-bottom: -40px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1)); transition: all 0.3s ease;"
+                            />          
+                            </div>
                         </tr>
                         
                         <tr>
