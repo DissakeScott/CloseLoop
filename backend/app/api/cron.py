@@ -1,60 +1,74 @@
 import os
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, BackgroundTasks
 from sqlalchemy.orm import Session
-from app.models.database import User, get_db
+# IMPORT IMPORTANT : Ajoute SessionLocal pour que la tâche de fond ait sa propre connexion DB
+from app.models.database import User, get_db, SessionLocal
 from app.core.security import decrypt_token
 from app.core.config import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 from app.services.gmail_service import build_gmail_service, get_followup_opportunities, send_summary_email
 
 router = APIRouter()
 
-# On récupère le mot de passe depuis les variables d'environnement
 CRON_SECRET = os.getenv("CRON_SECRET")
 
-@router.post("/trigger-scans")
-def trigger_background_scans(authorization: str = Header(None), db: Session = Depends(get_db)):
-    """Route appelée toutes les 6h par un service externe pour scanner les emails."""
+def process_all_users_background():
+    """
+    C'est cette fonction qui fait le travail lourd.
+    Elle tourne en arrière-plan sans aucune limite de temps !
+    """
+    # 1. On crée une session DB isolée pour l'arrière-plan
+    db = SessionLocal()
+    total_opportunities = 0
     
-    # 1. Vérification de la sécurité
+    try:
+        users = db.query(User).all()
+        
+        for user in users:
+            if not user.access_token:
+                continue
+                
+            try:
+                access_token = decrypt_token(user.access_token)
+                refresh_token = decrypt_token(user.refresh_token) if user.refresh_token else None
+                
+                service = build_gmail_service(
+                    access_token, refresh_token, 
+                    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+                )
+                
+                opportunities = get_followup_opportunities(service, days_threshold=3)
+                  
+                if opportunities:
+                    print(f"🔔 {len(opportunities)} opportunités trouvées pour {user.email}")
+                    total_opportunities += len(opportunities)
+                    send_summary_email(service, user.email, len(opportunities))
+            
+            except Exception as e:
+                print(f"Erreur lors du scan pour {user.email}: {e}")
+                
+        print(f"✅ Scan global terminé. {total_opportunities} opportunités trouvées.")
+        
+    finally:
+        # 2. Très important : fermer la session DB à la fin du processus
+        db.close()
+
+
+@router.post("/trigger-scans")
+def trigger_background_scans(
+    background_tasks: BackgroundTasks, 
+    authorization: str = Header(None)
+):
+    """Route appelée toutes les 6h par le service externe (cron-job.org)."""
+    
     expected_token = f"Bearer {CRON_SECRET}"
     if authorization != expected_token:
         raise HTTPException(status_code=401, detail="Accès non autorisé au Cron.")
     
-    users = db.query(User).all()
-    total_opportunities = 0
-    
-    # 2. Parcours de tous les utilisateurs de la base de données
-    for user in users:
-        if not user.access_token:
-            continue
+    # 3. Au lieu de faire le scan ici, on le délègue à l'arrière-plan
+    background_tasks.add_task(process_all_users_background)
             
-        try:
-            # On déchiffre les tokens (la sécurité de la Phase 1 paie ici !)
-            access_token = decrypt_token(user.access_token)
-            refresh_token = decrypt_token(user.refresh_token) if user.refresh_token else None
-            
-            service = build_gmail_service(
-                access_token, refresh_token, 
-                GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
-            )
-            
-            # On cherche les opportunités (avec un seuil de 3 jours)
-            opportunities = get_followup_opportunities(service, days_threshold=3)
-            
-              
-            if opportunities:
-                print(f"🔔 {len(opportunities)} opportunités trouvées pour {user.email}")
-                total_opportunities += len(opportunities)
-                
-                # NOUVEAU : Envoi de l'email récapitulatif !
-                send_summary_email(service, user.email, len(opportunities))
-        
-        except Exception as e:
-            print(f"Erreur lors du scan pour {user.email}: {e}")
-            # Si le token d'un utilisateur a expiré, on l'ignore et on passe au suivant
-            
+    # 4. On répond à cron-job.org IMMÉDIATEMENT (en 0.1 seconde)
     return {
         "status": "success", 
-        "users_scanned": len(users), 
-        "total_opportunities_found": total_opportunities
+        "message": "Le scan a été lancé en arrière-plan et traitera tous les utilisateurs."
     }
